@@ -20,6 +20,10 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: FFmpeg (the render checks run it, as in backend/Dockerfile)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Build and unit tests
         working-directory: backend
         run: mvn -B -ntp verify 2>&1 | tee "$RUNNER_TEMP/backend.log"; exit "${PIPESTATUS[0]}"
