@@ -111,13 +111,16 @@ id "$SUDO_USER_NAME" >/dev/null 2>&1 && usermod -aG docker "$SUDO_USER_NAME" || 
 # here; the guides cover the cloud side.
 
 say "2/6 Opening ports 80 and 443 in the server's firewall"
-for port in 80 443; do
-  iptables -C INPUT -p tcp --dport "$port" -m state --state NEW -j ACCEPT 2>/dev/null \
-    || iptables -I INPUT 5 -p tcp --dport "$port" -m state --state NEW -j ACCEPT
-done
-iptables -C INPUT -p udp --dport 443 -j ACCEPT 2>/dev/null || iptables -I INPUT 5 -p udp --dport 443 -j ACCEPT
-netfilter-persistent save >/dev/null
 
+for port in 80 443; do
+    iptables -C INPUT -p tcp --dport "$port" -m conntrack --ctstate NEW -j ACCEPT 2>/dev/null \
+        || iptables -I INPUT 1 -p tcp --dport "$port" -m conntrack --ctstate NEW -j ACCEPT
+done
+
+iptables -C INPUT -p udp --dport 443 -j ACCEPT 2>/dev/null \
+    || iptables -I INPUT 1 -p udp --dport 443 -j ACCEPT
+
+netfilter-persistent save >/dev/null
 # ---- swap -----------------------------------------------------------------------------------------------------
 
 say "3/6 Adding 4 GB of swap (headroom for builds and video renders)"
