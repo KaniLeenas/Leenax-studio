@@ -238,6 +238,18 @@ public class ProjectService {
         return role;
     }
 
+    /** Responses for a few projects at once (the dashboard's recent projects), with your role in each. */
+    @Transactional(readOnly = true)
+    public List<ProjectResponse> responses(List<Project> list) {
+        if (list.isEmpty()) return List.of();
+        List<UUID> ids = list.stream().map(Project::getId).toList();
+        User me = current.require();
+        Map<UUID, ProjectMembers.Role> roles = members.rolesOf(me.getId(), ids);
+        Map<UUID, Long> counts = members.counts(ids);
+        return list.stream().map(p -> ProjectResponse.of(p, media.countByProjectId(p.getId()),
+                roleName(me, roles.get(p.getId())), counts.getOrDefault(p.getId(), 0L))).toList();
+    }
+
     private ProjectResponse response(Project p) {
         User me = current.require();
         Optional<ProjectMembers.Role> role = members.role(p.getId(), me.getId());

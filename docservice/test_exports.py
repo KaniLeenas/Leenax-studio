@@ -5,6 +5,8 @@ import io
 import pathlib
 import zipfile
 
+import pytest
+
 import pypdfium2 as pdfium
 from fastapi.testclient import TestClient
 
@@ -284,3 +286,17 @@ def test_seo_report_as_word_and_excel():
     assert comp["H2"].value == "Hidden by the channel"
     assert wb["Titles"]["P2"].value == "recommended" and wb["Titles"]["P3"].value == "chosen"
     assert any(r[0].value == "Scoring" for r in wb["Sources"].iter_rows(min_row=2))
+
+
+def test_tamil_uses_noto_sans_tamil_and_english_reads_in_order():
+    # Latin text in Noto Sans, Tamil in Noto Sans Tamil (not another font that shapes Tamil badly).
+    import shutil, subprocess
+    have = shutil.which("fc-list") and "Noto Sans Tamil" in subprocess.run(["fc-list", ":", "family"], capture_output=True, text=True).stdout
+    if not have:
+        pytest.skip("Noto Sans Tamil isn't installed here (it is in the Docker image and in CI)")
+    payload = {"kind": "questions", "title": "Keys: question bank", "answerKey": "inline", "meta": [["Version", "2, approved"]],
+               "questions": QUESTIONS, "format": "pdf"}
+    data = post(payload).content
+    assert b"NotoSansTamil" in data and b"NotoSans-Regular" in data
+    _, text = pdf_text(data)
+    assert "Which key links two tables?" in text and "இல்லை" in text

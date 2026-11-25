@@ -55,7 +55,7 @@ def export(payload: dict) -> tuple[bytes, str]:
 # ---- HTML pages ------------------------------------------------------------------------------------
 
 STYLE = """
-body, h1, h2, h3, h4, p, li, td, th { font-family: 'Noto Sans Tamil', 'Noto Sans', 'DejaVu Sans', sans-serif; }
+body, h1, h2, h3, h4, p, li, td, th { font-family: 'Noto Sans', 'Noto Sans Tamil', 'DejaVu Sans', sans-serif; }
 body { font-size: 11pt; line-height: 1.45; }
 h1 { font-size: 20pt; margin: 0 0 4pt 0; } h2 { font-size: 15pt; margin-top: 16pt; } h3 { font-size: 12.5pt; } h4 { font-size: 11.5pt; }
 pre, code { font-family: 'DejaVu Sans Mono', 'Noto Sans Mono', monospace; font-size: 9.5pt; }
@@ -682,8 +682,26 @@ def questions_xlsx(p: dict) -> bytes:
 
 # ---- LibreOffice -----------------------------------------------------------------------------------
 
+# Latin text uses Noto Sans (first in STYLE); Tamil text must then come from Noto Sans Tamil, not
+# whatever other font has Tamil glyphs (some shape Tamil badly). LibreOffice picks fallback fonts
+# through fontconfig, so this tells fontconfig, for the conversion only.
+FONTCONFIG = """<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>
+  <alias binding="same">
+    <family>Noto Sans</family>
+    <accept><family>Noto Sans Tamil</family></accept>
+  </alias>
+</fontconfig>
+"""
+
+
 def convert(page_html: str, fmt: str) -> bytes:
     with tempfile.TemporaryDirectory(prefix="lx-export-") as work:
+        fonts_conf = os.path.join(work, "fonts.conf")
+        with open(fonts_conf, "w", encoding="utf-8") as fh:
+            fh.write(FONTCONFIG)
         src = os.path.join(work, "export.html")
         with open(src, "w", encoding="utf-8") as fh:
             fh.write(page_html)
@@ -691,7 +709,8 @@ def convert(page_html: str, fmt: str) -> bytes:
         cmd = ["soffice", f"-env:UserInstallation=file://{work}/profile", "--headless", "--norestore", "--nolockcheck",
                "--convert-to", filt, "--outdir", work, src]
         try:
-            subprocess.run(cmd, check=True, timeout=CONVERT_TIMEOUT, capture_output=True, env={**os.environ, "HOME": work})
+            subprocess.run(cmd, check=True, timeout=CONVERT_TIMEOUT, capture_output=True,
+                           env={**os.environ, "HOME": work, "FONTCONFIG_FILE": fonts_conf})
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
             raise HTTPException(status_code=503, detail="The export couldn't be built")
         out = os.path.join(work, f"export.{fmt}")

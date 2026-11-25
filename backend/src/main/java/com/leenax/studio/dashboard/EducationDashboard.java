@@ -153,7 +153,7 @@ public class EducationDashboard {
     }
 
     public List<Activity> activity() {
-        return jdbc.query(ACTIVITY, EducationDashboard::activity);
+        return jdbc.query(ACTIVITY, (rs, i) -> activity(rs, i));
     }
 
     private static Activity activity(ResultSet rs, int i) throws SQLException {

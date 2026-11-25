@@ -7,6 +7,7 @@ import com.leenax.studio.media.MediaService;
 import com.leenax.studio.projects.Project;
 import com.leenax.studio.projects.ProjectDtos.ProjectResponse;
 import com.leenax.studio.projects.ProjectRepository;
+import com.leenax.studio.projects.ProjectService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,12 +24,15 @@ public class DashboardController {
     private final MediaService mediaService;
 
     private final EducationDashboard education;
+    private final ProjectService projectService;
 
-    public DashboardController(ProjectRepository projects, MediaAssetRepository media, MediaService mediaService, EducationDashboard education) {
+    public DashboardController(ProjectRepository projects, MediaAssetRepository media, MediaService mediaService, EducationDashboard education,
+                               ProjectService projectService) {
         this.education = education;
         this.projects = projects;
         this.media = media;
         this.mediaService = mediaService;
+        this.projectService = projectService;
     }
 
     public record Stats(long totalProjects, long activeProjects, long completedProjects,
@@ -53,10 +57,8 @@ public class DashboardController {
                 media.countByKind(MediaKind.AUDIO),
                 media.totalSizeBytes());
 
-        List<ProjectResponse> recentProjects = projects.findTop5ByStatusNotOrderByUpdatedAtDesc(Project.Status.ARCHIVED)
-                .stream()
-                .map(p -> ProjectResponse.of(p, media.countByProjectId(p.getId())))
-                .toList();
+        List<ProjectResponse> recentProjects = projectService.responses(
+                projects.findTop5ByStatusNotOrderByUpdatedAtDesc(Project.Status.ARCHIVED));
         List<MediaResponse> recentMedia = mediaService.recent();
         return new DashboardResponse(stats, recentProjects, recentMedia);
     }
