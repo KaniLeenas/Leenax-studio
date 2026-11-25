@@ -1,0 +1,28 @@
+{
+  "name": "leenax-renderer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Private render service: turns an editor timeline into an MP4 with Remotion.",
+  "scripts": {
+    "bundle": "node bundle.mjs",
+    "start": "node server.mjs",
+    "test": "node --test test/server.test.mjs",
+    "test:render": "node test/real-render.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/anek-tamil": "^5.3.0",
+    "@fontsource/anton": "^5.3.0",
+    "@fontsource/bebas-neue": "^5.3.0",
+    "@fontsource/carlito": "^5.3.0",
+    "@fontsource/catamaran": "^5.3.0",
+    "@fontsource/cousine": "^5.3.0",
+    "@fontsource/hind-madurai": "^5.3.0",
+    "@fontsource/noto-sans-tamil": "^5.3.0",
+    "@remotion/bundler": "4.0.545",
+    "@remotion/renderer": "4.0.545",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "4.0.545"
+  }
+}

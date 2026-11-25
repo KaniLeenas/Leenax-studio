@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'">
+<title>Can't reach the server</title>
+<link rel="stylesheet" href="pages.css">
+</head>
+<body>
+<main>
+  <img class="mark" src="../../assets/icon.png" alt="">
+  <h1>Can't reach your Leenax server</h1>
+  <p id="what">The server didn't answer.</p>
+  <p>If it runs on this PC, start Docker Desktop and the studio (<code>docker compose up -d</code> in the Leenax folder), then try again.</p>
+  <div class="row">
+    <button type="button" class="primary" id="retry">Try again</button>
+    <button type="button" id="change">Change server</button>
+  </div>
+  <p class="note" id="why"></p>
+</main>
+<script src="offline.js"></script>
+</body>
+</html>

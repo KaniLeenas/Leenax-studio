@@ -1,0 +1,20 @@
+/// <reference types="vitest/config" />
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  server: {
+    port: 5173,
+    proxy: {
+      // Same-origin in dev so the session + CSRF cookies just work.
+      '/api': { target: 'http://localhost:8080', changeOrigin: false },
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
+  },
+})

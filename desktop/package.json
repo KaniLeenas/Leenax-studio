@@ -1,0 +1,61 @@
+{
+  "name": "leenax-studio-desktop",
+  "productName": "Leenax Studio",
+  "version": "1.0.0",
+  "description": "Leenax Studio for Windows: your Leenax server in its own window, with a tray icon and Windows notifications.",
+  "author": "Leenax Studio",
+  "private": true,
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "dist:win": "node scripts/build-win.mjs"
+  },
+  "devDependencies": {
+    "electron": "^45.5.0",
+    "electron-builder": "^26.18.0",
+    "resedit": "^3.1.1"
+  },
+  "build": {
+    "appId": "lk.leenax.studio",
+    "productName": "Leenax Studio",
+    "copyright": "Leenax Studio",
+    "directories": {
+      "output": "dist",
+      "buildResources": "installer"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "installer/icon.ico",
+      "executableName": "LeenaxStudio",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Leenax Studio",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Leenax-Studio-Setup-${version}.exe",
+      "installerIcon": "installer/icon.ico",
+      "uninstallerIcon": "installer/icon.ico"
+    }
+  }
+}

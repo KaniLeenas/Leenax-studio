@@ -1,0 +1,9 @@
+# Used by builds whose context is the repository root (renderer).
+**/node_modules
+**/dist
+**/bundle
+backend/target
+.git
+Claude outputs
+*.zip
+.env

@@ -1,0 +1,30 @@
+# Leenax Studio on a cloud server (Oracle Cloud Always Free, AWS EC2, or any Ubuntu server).
+# Adds Caddy in front of the studio: it gets free HTTPS certificates (Let's Encrypt) by itself and
+# renews them. Only ports 80 and 443 are open to the internet; the studio (8088) and the media
+# store (8333) stay on 127.0.0.1 as before.
+#
+#   docker compose -f docker-compose.yml -f deploy/cloud/docker-compose.cloud.yml up -d --build
+#
+# setup-server.sh writes STUDIO_HOST and MEDIA_HOST into .env.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+      - storage
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      STUDIO_HOST: ${STUDIO_HOST:?set STUDIO_HOST in .env}
+      MEDIA_HOST: ${MEDIA_HOST:?set MEDIA_HOST in .env}
+    volumes:
+      - ./deploy/cloud/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+
+volumes:
+  caddydata:
+  caddyconfig:

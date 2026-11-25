@@ -1,0 +1,150 @@
+server:
+  port: 8080
+  forward-headers-strategy: native     # trust X-Forwarded-* from the Nginx container
+  error:
+    include-message: never
+    include-stacktrace: never
+  servlet:
+    session:
+      timeout: 12h
+      cookie:
+        name: LEENAX_SESSION
+        http-only: true
+        same-site: strict
+        secure: ${COOKIE_SECURE:false}   # set true when served over HTTPS
+  tomcat:
+    max-swallow-size: -1
+
+spring:
+  application:
+    name: leenax-studio
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/leenax}
+    username: ${DB_USERNAME:leenax}
+    password: ${DB_PASSWORD:leenax}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none   # Flyway owns the schema
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  session:
+    redis:
+      namespace: leenax:session
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${MAX_UPLOAD_SIZE:2GB}
+      max-request-size: ${MAX_UPLOAD_SIZE:2GB}
+      file-size-threshold: 1MB
+  jackson:
+    time-zone: UTC
+    default-property-inclusion: non_null
+
+leenax:
+  security:
+    # 32-byte Base64 key that encrypts your AI provider API keys. Generate with: openssl rand -base64 32
+    # Keep a copy somewhere safe: if it is lost, saved API keys cannot be decrypted and must be re-entered.
+    master-key: ${LEENAX_MASTER_KEY:}
+    # Ceiling on API requests per client address per minute (sign-in has its own lockout).
+    api-requests-per-minute: ${API_REQUESTS_PER_MINUTE:600}
+  generation:
+    max-concurrent: ${GENERATION_MAX_CONCURRENT:4}
+    tick-ms: 3000
+  auth:
+    # Required to create the owner account on first run. Leave blank to disable setup.
+    setup-token: ${SETUP_TOKEN:}
+    max-failed-logins: 5
+    lockout-minutes: 15
+  storage:
+    bucket: ${S3_BUCKET:leenax-media}
+    region: ${S3_REGION:ap-south-1}
+    # Endpoint the backend uses (MinIO in Docker). Leave blank for real AWS S3.
+    endpoint: ${S3_ENDPOINT:}
+    # Endpoint browsers use for signed URLs (e.g. https://media.example.com). Blank = same as endpoint.
+    public-endpoint: ${S3_PUBLIC_ENDPOINT:}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+    path-style: ${S3_PATH_STYLE:true}
+    create-bucket: ${S3_CREATE_BUCKET:true}
+    signed-url-minutes: 30
+  media:
+    ffprobe-path: ${FFPROBE_PATH:ffprobe}
+    ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
+    # Longest a single audio/image FFmpeg job may run.
+    ffmpeg-timeout-seconds: ${FFMPEG_TIMEOUT_SECONDS:900}
+  renderer:
+    # Render service for video exports (docker compose service "renderer"). Blank = exports off.
+    url: ${RENDERER_URL:}
+    token: ${RENDERER_TOKEN:}
+    tick-ms: 2000
+  imagetools:
+    # Background removal service (docker compose service "imagetools"). Blank = feature off.
+    url: ${IMAGETOOLS_URL:}
+  docservice:
+    # Document reading + English/Tamil OCR (docker compose service "docservice"). Blank = uploads wait in the queue.
+    url: ${DOCSERVICE_URL:}
+  documents:
+    max-bytes: ${MAX_DOCUMENT_BYTES:104857600}
+  syllabus:
+    # Most text sent to the AI in one syllabus analysis (about 40,000 to 75,000 tokens).
+    max-source-chars: ${SYLLABUS_MAX_SOURCE_CHARS:150000}
+  seo:
+    # YouTube search.list calls allowed per day (Pacific time), shared by everyone on this install.
+    # Google's default allowance is about 100; raise it only after Google grants more quota.
+    daily-searches: ${SEO_DAILY_SEARCHES:100}
+    cache-days: ${SEO_CACHE_DAYS:7}
+    # Weights of the keyword opportunity score (demand, competition, gap); see the README.
+    weight-demand: ${SEO_WEIGHT_DEMAND:0.4}
+    weight-competition: ${SEO_WEIGHT_COMPETITION:0.3}
+    weight-gap: ${SEO_WEIGHT_GAP:0.3}
+  social:
+    # Address you open the studio at. Sign-in pages return to <this>/api/v1/social/oauth/<google|meta|tiktok>/callback,
+    # and those exact URLs must be registered in each developer console.
+    public-base-url: ${PUBLIC_BASE_URL:http://localhost:8088}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+    meta:
+      app-id: ${META_APP_ID:}
+      app-secret: ${META_APP_SECRET:}
+      graph-version: ${META_GRAPH_VERSION:v26.0}
+    tiktok:
+      client-key: ${TIKTOK_CLIENT_KEY:}
+      client-secret: ${TIKTOK_CLIENT_SECRET:}
+  backup:
+    # Where the backup service's folders and latest.json are mounted (read-only).
+    dir: ${BACKUP_DIR:/backups}
+  analytics:
+    # How often the collector looks for posts whose numbers are due (each post is re-read every 6 hours).
+    tick-ms: 1800000
+  publish:
+    # Targets uploaded at the same time.
+    max-concurrent: ${PUBLISH_MAX_CONCURRENT:2}
+    tick-ms: 5000
+  youtube:
+    # When the daily YouTube reach reports (impressions, click-through rate) are imported (UTC, Spring cron).
+    reach-import-cron: ${YOUTUBE_REACH_IMPORT_CRON:0 20 14 * * *}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.leenax: INFO

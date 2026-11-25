@@ -1,0 +1,32 @@
+# HTTPS in front of Leenax Studio. Caddy gets and renews the certificates itself.
+# STUDIO_HOST and MEDIA_HOST come from .env (see setup-server.sh).
+
+{$STUDIO_HOST} {
+	encode zstd gzip
+	request_body {
+		max_size 2100MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy web:80 {
+		# live progress (Server-Sent Events) must reach the browser at once
+		flush_interval -1
+	}
+}
+
+# Signed media links (uploads, renders, exports). The signature covers this host name,
+# which Caddy passes through unchanged.
+{$MEDIA_HOST} {
+	request_body {
+		max_size 2100MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy storage:8333 {
+		flush_interval -1
+	}
+}

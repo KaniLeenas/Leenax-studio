@@ -1,0 +1,19 @@
+.env
+.env.*
+!.env.example
+backups/
+server-backups/
+Claude outputs/
+node_modules/
+dist/
+target/
+build/
+!desktop/installer/
+__pycache__/
+.pytest_cache/
+*.tsbuildinfo
+*.pem
+*.key
+.idea/
+.vscode/
+*.iml

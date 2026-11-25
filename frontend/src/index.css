@@ -1,0 +1,136 @@
+@import "tailwindcss";
+@import "@fontsource-variable/anek-tamil";
+@import "@fontsource/hind-madurai/400.css";
+@import "@fontsource/hind-madurai/500.css";
+@import "@fontsource/hind-madurai/600.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  Leenax Studio tokens
+  - ink / paper: cool indigo neutrals (edit-suite at night, not pure black)
+  - marigold: the one warm accent — primary actions, the playhead, focus
+  - peacock: secondary signal — ready / success / live
+  Anek Tamil for headings, Hind Madurai for UI text; both cover Tamil and Latin.
+*/
+@theme {
+  --font-display: "Anek Tamil Variable", "Hind Madurai", system-ui, sans-serif;
+  --font-sans: "Hind Madurai", system-ui, sans-serif;
+
+  --color-marigold-300: #f6cf72;
+  --color-marigold-400: #f0b93a;
+  --color-marigold-500: #e8a317;
+  --color-marigold-600: #c3850c;
+  --color-marigold-700: #96650a;
+
+  --color-peacock-400: #2fb4b0;
+  --color-peacock-500: #0f9792;
+  --color-peacock-600: #0f7c80;
+
+  --color-rose-signal: #d64565;
+}
+
+:root {
+  --bg: #f3f4f9;
+  --surface: #ffffff;
+  --surface-2: #eceef6;
+  --line: #dcdfeb;
+  --text: #1e2240;
+  --text-muted: #5d6385;
+  --text-faint: #8b90ad;
+  --track: #e3e6f1;
+  /* Chart series: categorical slots 1–4, validated for colour-blind separation on these surfaces. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --grid: #e6e8f1;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #151829;
+  --surface: #1d2136;
+  --surface-2: #252a43;
+  --line: #2f3553;
+  --text: #e8eaf6;
+  --text-muted: #a3a8c6;
+  --text-faint: #6f7596;
+  --track: #252a43;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --grid: #2a2f4a;
+  color-scheme: dark;
+}
+
+@utility bg-app { background-color: var(--bg); }
+@utility bg-surface { background-color: var(--surface); }
+@utility bg-surface-2 { background-color: var(--surface-2); }
+@utility bg-track { background-color: var(--track); }
+@utility border-line { border-color: var(--line); }
+@utility border-l-line { border-left-color: var(--line); }
+@utility bg-line { background-color: var(--line); }
+@utility divide-line { & > :not(:last-child) { border-color: var(--line); } }
+@utility text-ink { color: var(--text); }
+@utility text-muted { color: var(--text-muted); }
+@utility text-faint { color: var(--text-faint); }
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-marigold-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- notes editor (E4) ---- */
+.notes-prose { line-height: 1.65; overflow-wrap: anywhere; }
+.notes-prose > * + * { margin-top: 0.75em; }
+.notes-prose h1 { font-size: 1.75rem; font-weight: 650; margin-top: 0.4em; }
+.notes-prose h2 { font-size: 1.35rem; font-weight: 650; margin-top: 1.4em; }
+.notes-prose h3 { font-size: 1.12rem; font-weight: 650; margin-top: 1.1em; }
+.notes-prose h4 { font-size: 1rem; font-weight: 650; margin-top: 1em; }
+.notes-prose ul { list-style: disc; padding-left: 1.5em; }
+.notes-prose ol { list-style: decimal; padding-left: 1.5em; }
+.notes-prose li > p { margin: 0.15em 0; }
+.notes-prose blockquote { border-left: 3px solid var(--color-marigold-500); padding-left: 1em; color: var(--text-muted); }
+.notes-prose code { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 0.9em; background: var(--surface-2); padding: 0.1em 0.3em; border-radius: 4px; }
+.notes-prose pre { background: var(--surface-2); padding: 0.9em 1em; border-radius: 10px; overflow-x: auto; }
+.notes-prose pre code { background: none; padding: 0; }
+.notes-prose a { text-decoration: underline; text-underline-offset: 2px; }
+.notes-prose hr { border: 0; border-top: 1px solid var(--line); margin: 1.5em 0; }
+.notes-prose table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.notes-prose th, .notes-prose td { border: 1px solid var(--line); padding: 0.4em 0.6em; vertical-align: top; }
+.notes-prose th { background: var(--surface-2); font-weight: 600; text-align: left; }
+.notes-prose .selectedCell { background: color-mix(in srgb, var(--color-marigold-500) 15%, transparent); }
+.notes-prose p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--text-faint); float: left; height: 0; pointer-events: none; }

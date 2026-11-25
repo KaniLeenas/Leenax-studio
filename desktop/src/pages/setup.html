@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'">
+<title>Connect to your Leenax server</title>
+<link rel="stylesheet" href="pages.css">
+</head>
+<body>
+<main>
+  <img class="mark" src="../../assets/icon.png" alt="">
+  <h1>Connect to your Leenax server</h1>
+  <p>Leenax Studio opens your own server in this window. Type the address you use in the browser.</p>
+  <form id="form" novalidate>
+    <label for="address">Server address</label>
+    <input id="address" name="address" autocomplete="url" spellcheck="false" placeholder="http://localhost:8088" aria-describedby="hint result" required>
+    <p class="hint" id="hint">On the PC running Docker it is usually <code>http://localhost:8088</code>. A server on the internet must use <code>https://</code>.</p>
+    <div class="row">
+      <button type="submit" class="primary" id="connect">Connect</button>
+      <button type="button" id="cancel" hidden>Back to the studio</button>
+    </div>
+    <p id="result" role="status" aria-live="polite"></p>
+  </form>
+  <p class="note">This app keeps only the address and the window size. You sign in on the server's own page; your password and keys never leave the server.</p>
+</main>
+<script src="setup.js"></script>
+</body>
+</html>
