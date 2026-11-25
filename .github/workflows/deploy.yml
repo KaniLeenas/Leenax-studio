@@ -1,0 +1,106 @@
+# Deploys Leenax Studio to your cloud server (AWS or Oracle) after every push to main whose checks
+# pass. It copies the code over SSH and runs deploy/cloud/setup-server.sh there, which rebuilds and
+# restarts the studio. The server keeps its own .env (passwords, master key) and data.
+#
+# Set up once (GitHub → the repository → Settings → Secrets and variables → Actions):
+#   Secrets:    SERVER_SSH_KEY      the server's private key (the whole .pem file)
+#               SERVER_KNOWN_HOSTS  the server's SSH host key line (see deploy/cloud/README-github.md)
+#   Variables:  SERVER_HOST         the server's address, e.g. leenax-studio.duckdns.org or its IP
+#               LEENAX_DOMAIN       the studio's address, e.g. leenax-studio.duckdns.org
+#               SERVER_USER         optional, default ubuntu
+name: deploy
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: # "Run workflow" button: deploys main now, without waiting for the checks
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # never stop a deploy half way; the next one waits
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 75
+    env:
+      SERVER_HOST: ${{ vars.SERVER_HOST }}
+      SERVER_USER: ${{ vars.SERVER_USER || 'ubuntu' }}
+      LEENAX_DOMAIN: ${{ vars.LEENAX_DOMAIN }}
+    steps:
+      - name: Check the settings
+        env:
+          HAS_KEY: ${{ secrets.SERVER_SSH_KEY != '' }}
+          HAS_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS != '' }}
+        run: |
+          missing=""
+          [ -n "$SERVER_HOST" ] || missing="$missing SERVER_HOST(variable)"
+          [ -n "$LEENAX_DOMAIN" ] || missing="$missing LEENAX_DOMAIN(variable)"
+          [ "$HAS_KEY" = "true" ] || missing="$missing SERVER_SSH_KEY(secret)"
+          [ "$HAS_HOSTS" = "true" ] || missing="$missing SERVER_KNOWN_HOSTS(secret)"
+          if [ -n "$missing" ]; then echo "::error::Add these in Settings → Secrets and variables → Actions:$missing"; exit 1; fi
+          echo "$LEENAX_DOMAIN" | grep -Eq '^[A-Za-z0-9.-]+$' || { echo "::error::LEENAX_DOMAIN isn't a host name"; exit 1; }
+
+      - uses: actions/checkout@v5
+        with:
+          # the commit the checks passed on (not whatever main is by now)
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Pack the project
+        run: |
+          tar -czf "$RUNNER_TEMP/leenax.tgz" \
+            --exclude=./.git --exclude=./.github --exclude=./desktop --exclude=./.env \
+            --exclude=node_modules --exclude=dist --exclude=target --exclude='*.tsbuildinfo' .
+          du -h "$RUNNER_TEMP/leenax.tgz"
+
+      - name: SSH key and the server's identity
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/server_key && chmod 600 ~/.ssh/server_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
+
+      - name: Upload
+        run: |
+          scp -i ~/.ssh/server_key -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$RUNNER_TEMP/leenax.tgz" "$SERVER_USER@$SERVER_HOST:/tmp/leenax-release.tgz"
+
+      - name: Install on the server
+        run: |
+          ssh -i ~/.ssh/server_key -o StrictHostKeyChecking=yes -o BatchMode=yes -o ServerAliveInterval=30 \
+            "$SERVER_USER@$SERVER_HOST" "bash -s" -- "$LEENAX_DOMAIN" <<'REMOTE'
+          set -euo pipefail
+          DOMAIN="$1"
+          rm -rf ~/leenax-release && mkdir -p ~/leenax-release ~/leenax
+          tar -xzf /tmp/leenax-release.tgz -C ~/leenax-release && rm /tmp/leenax-release.tgz
+          command -v rsync >/dev/null || sudo apt-get install -y -qq rsync >/dev/null
+          # replace the program files; keep the server's settings, backups and Docker data
+          rsync -a --delete --exclude=/.env --exclude=/backups ~/leenax-release/ ~/leenax/
+          rm -rf ~/leenax-release
+          cd ~/leenax
+          sudo bash deploy/cloud/setup-server.sh "$DOMAIN"
+          REMOTE
+
+      - name: Check the studio answers
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 10 "https://$LEENAX_DOMAIN/api/v1/auth/status" >/dev/null; then
+              echo "https://$LEENAX_DOMAIN is up"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::https://$LEENAX_DOMAIN didn't answer after the deploy. See the server's logs (deploy/cloud/README-aws.md)."
+          exit 1
+
+      - name: Forget the key
+        if: always()
+        run: rm -f ~/.ssh/server_key

@@ -1,0 +1,32 @@
+# Builds the Windows installer (desktop/) when the desktop app changes, or on demand.
+# The installer is attached to the run as an artifact; nothing is published or signed.
+name: desktop
+
+on:
+  push:
+    paths: ['desktop/**', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - working-directory: desktop
+        run: |
+          npm ci
+          npm test
+          npm run dist:win
+      - uses: actions/upload-artifact@v6
+        with:
+          name: leenax-studio-windows-installer
+          path: desktop/dist/*.exe
+
