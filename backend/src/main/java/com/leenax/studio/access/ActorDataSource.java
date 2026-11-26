@@ -1,3 +1,4 @@
+
 package com.leenax.studio.access;
 
 import javax.sql.DataSource;
@@ -9,18 +10,8 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 
-/**
- * Wraps the connection pool: every connection handed out first tells PostgreSQL who
- * it acts for, and switches to the restricted {@code leenax_app} role unless it is a
- * system connection (migrations and schedulers keep the login role).
- *
- * <p>The setting is made on every checkout, so a pooled connection never carries the
- * previous user's identity. If this wrapper were ever bypassed, the policies see no
- * mode and return nothing: the failure is loud, not a leak.
- */
 public class ActorDataSource implements DataSource {
 
-    /** Tested against PostgreSQL in /tmp/sqltest/v9.py with the same parameter order. */
     static final String ACT_SQL = """
             select set_config('role', case when ? = 'system' then 'none' else 'leenax_app' end, false),
                    set_config('leenax.user_id', coalesce(u.id::text, ?, ''), false),
@@ -29,6 +20,12 @@ public class ActorDataSource implements DataSource {
                                                   when u.role = 'ADMIN' then 'admin' else 'user' end, false)
               from (select 1) d
               left join users u on ? = 'user' and u.status = 'ACTIVE' and (u.id::text = ? or lower(u.email) = lower(?))
+            """;
+
+    private static final String SYSTEM_SQL = """
+            select set_config('role', case when ? = 'system' then 'none' else 'leenax_app' end, false),
+                   set_config('leenax.user_id', coalesce(?, ''), false),
+                   set_config('leenax.mode', ?, false)
             """;
 
     private final DataSource target;
@@ -68,19 +65,40 @@ public class ActorDataSource implements DataSource {
     }
 
     static void apply(Connection c, Actor a) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement(ACT_SQL)) {
-            Object[] params = parameters(a);
-            for (int i = 0; i < params.length; i++) ps.setObject(i + 1, params[i]);
-            ps.execute();
+        if ("user".equals(a.mode())) {
+            try (PreparedStatement ps = c.prepareStatement(ACT_SQL)) {
+                Object[] params = parameters(a);
+                for (int i = 0; i < params.length; i++) {
+                    ps.setObject(i + 1, params[i]);
+                }
+                ps.execute();
+            }
+        } else {
+            String id = a.userId() == null ? null : a.userId().toString();
+
+            try (PreparedStatement ps = c.prepareStatement(SYSTEM_SQL)) {
+                ps.setString(1, a.mode());
+                ps.setString(2, id);
+                ps.setString(3, a.mode());
+                ps.execute();
+            }
         }
     }
 
-    /** The 7 parameters of {@link #ACT_SQL}, in order. */
     static Object[] parameters(Actor a) {
         String mode = a.mode();
         String id = a.userId() == null ? null : a.userId().toString();
         boolean person = "user".equals(mode);
-        return new Object[]{mode, person ? null : id, mode, mode, mode, person ? id : null, person ? a.email() : null};
+
+        return new Object[]{
+                mode,
+                person ? null : id,
+                mode,
+                mode,
+                mode,
+                person ? id : null,
+                person ? a.email() : null
+        };
     }
 
     @Override
@@ -111,7 +129,9 @@ public class ActorDataSource implements DataSource {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T unwrap(Class<T> type) throws SQLException {
-        if (type.isInstance(this)) return (T) this;
+        if (type.isInstance(this)) {
+            return (T) this;
+        }
         return target.unwrap(type);
     }
 
