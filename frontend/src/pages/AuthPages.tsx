@@ -1,8 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { BrandMark } from '../components/AppShell'
 import { Button, Field, Input } from '../components/ui'
 import { ApiError } from '../lib/api'
-import { useLogin, useMfaLogin, useSetup } from '../lib/queries'
+import { useLogin, useMfaLogin, useRegister, useRegistrationStatus, useSetup } from '../lib/queries'
 import { useLinkInfo, useRedeemLink } from '../lib/people'
 
 function AuthFrame({ title, intro, children }: { title: string; intro: string; children: ReactNode }) {
@@ -76,6 +77,7 @@ function FilmTimeline() {
 
 export function LoginPage() {
   const login = useLogin()
+  const registration = useRegistrationStatus()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
@@ -115,6 +117,37 @@ export function LoginPage() {
           Sign in
         </Button>
       </form>
+      {registration.data?.enabled && <p className="text-sm text-muted mt-5">New to Leenax Studio? <Link className="text-peacock-700 underline" to="/register">Create an account</Link></p>}
+    </AuthFrame>
+  )
+}
+
+export function RegisterPage() {
+  const status = useRegistrationStatus()
+  const register = useRegister()
+  const [form, setForm] = useState({ displayName: '', email: '', password: '', confirmPassword: '' })
+  const [error, setError] = useState<string>()
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    setError(undefined)
+    if (form.password.length < 12) return setError('Use at least 12 characters for your password.')
+    if (form.password !== form.confirmPassword) return setError('The passwords do not match.')
+    register.mutate(form, { onError: (e) => setError(e.message) })
+  }
+  if (status.isPending) return <AuthFrame title="Checking registration" intro="One moment."><span role="status" className="sr-only">Checking registration status</span></AuthFrame>
+  if (!status.data?.enabled) return <AuthFrame title="Registration is closed" intro="This studio currently accepts invited accounts only."><Link className="text-peacock-700 underline" to="/">Back to sign in</Link></AuthFrame>
+  if (register.isSuccess) return <AuthFrame title="Check your email" intro="If this address can register, a verification link will be sent. The link expires in 7 days."><Link className="text-peacock-700 underline" to="/">Back to sign in</Link></AuthFrame>
+  return (
+    <AuthFrame title="Create your account" intro="Verify your email before signing in to Leenax Studio.">
+      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+        <Field label="Full name">{(id) => <Input id={id} autoComplete="name" maxLength={80} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />}</Field>
+        <Field label="Email address">{(id) => <Input id={id} type="email" autoComplete="email" maxLength={254} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />}</Field>
+        <Field label="Password" hint="At least 12 characters.">{(id) => <Input id={id} type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />}</Field>
+        <Field label="Confirm password">{(id) => <Input id={id} type="password" autoComplete="new-password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />}</Field>
+        {(error || register.error) && <p role="alert" className="text-rose-signal text-sm">{error ?? register.error?.message}</p>}
+        <Button type="submit" variant="primary" loading={register.isPending} disabled={!form.displayName || !form.email || !form.password || !form.confirmPassword}>Create account</Button>
+      </form>
+      <p className="text-sm text-muted mt-5"><Link className="text-peacock-700 underline" to="/">Back to sign in</Link></p>
     </AuthFrame>
   )
 }
@@ -269,6 +302,14 @@ export function LinkPage({ token, onDone }: { token: string | null; onDone: () =
         <Button variant="primary" onClick={onDone}>
           Sign in
         </Button>
+      </AuthFrame>
+    )
+  }
+  if (activating && info.data.passwordChosen) {
+    return (
+      <AuthFrame title={`Verify your email, ${info.data.displayName}`} intro={`Your email address is ${info.data.email}. Verify it to activate your account.`}>
+        {redeem.error && <p role="alert" className="text-rose-signal text-sm mb-4">{redeem.error.message}</p>}
+        <Button variant="primary" loading={redeem.isPending} onClick={() => token && redeem.mutate({ token, password: '' })}>Verify email and activate</Button>
       </AuthFrame>
     )
   }

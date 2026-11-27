@@ -48,7 +48,8 @@ sysc.execute("update users set status='DEACTIVATED' where id <> %s and status <>
 tag = uuid.uuid4().hex[:6]
 mk = lambda n: sysc.execute("insert into users(email,display_name,password_hash) values (%s,%s,'x') returning id", (f"{n}-{tag}@t.lk", n)).fetchone()[0]
 owner, reviewer, editor, viewer = mk('Owner'), mk('Reviewer'), mk('Editor'), mk('Viewer')
-check('a sixth active person can\'t be added (five seats)', fails(sysc, "insert into users(email,display_name,password_hash) values (%s,'Sixth','x')", f"six-{tag}@t.lk") is not None)
+sixth = mk('Sixth')
+check('a sixth active person can be added without a seat ceiling', sixth is not None)
 co, cr, ce, cv = conn('user', owner), conn('user', reviewer), conn('user', editor), conn('user', viewer)
 worker = conn('worker')
 proj = uuid.uuid4()

@@ -39,6 +39,8 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf
                 .csrfTokenRepository(csrfRepository)
+                // Private backend-to-docservice callbacks authenticate with a dedicated shared token.
+                .ignoringRequestMatchers("/api/v1/internal/agents/**")
                 .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
             .securityContext(ctx -> ctx.securityContextRepository(contextRepository))
             .sessionManagement(s -> s
@@ -48,8 +50,11 @@ public class SecurityConfig {
                 // SSE and error re-dispatches reuse the original, already-authorised request
                 .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC, jakarta.servlet.DispatcherType.ERROR).permitAll()
                 .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/api/v1/internal/agents/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/auth/status").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/auth/registration").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/setup", "/api/v1/auth/login", "/api/v1/auth/mfa/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
                 // Activation and password-reset links: the one-time token in the request is the credential.
                 .requestMatchers(HttpMethod.GET, "/api/v1/auth/link").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/link").permitAll()

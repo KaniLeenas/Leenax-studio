@@ -56,7 +56,13 @@ public class AnthropicAdapter implements TextProvider {
 
     @Override
     public String complete(String model, String systemPrompt, String userPrompt, ProviderCredentials credentials) {
-        return send(model, systemPrompt, userPrompt, credentials);
+        return send(model, systemPrompt, userPrompt, credentials, null, null);
+    }
+
+    @Override
+    public String complete(String model, String systemPrompt, String userPrompt, ProviderCredentials credentials,
+                           double temperature, int maxOutputTokens) {
+        return send(model, systemPrompt, userPrompt, credentials, temperature, maxOutputTokens);
     }
 
     @Override
@@ -68,15 +74,17 @@ public class AnthropicAdapter implements TextProvider {
                     "data", java.util.Base64.getEncoder().encodeToString(img.bytes()))));
         }
         content.add(Map.of("type", "text", "text", userPrompt));
-        return send(model, systemPrompt, content, credentials);
+        return send(model, systemPrompt, content, credentials, null, null);
     }
 
-    private String send(String model, String systemPrompt, Object userContent, ProviderCredentials credentials) {
-        Map<String, Object> body = Map.of(
-                "model", model,
-                "max_tokens", MAX_TOKENS,
-                "system", systemPrompt,
-                "messages", List.of(Map.of("role", "user", "content", userContent)));
+    private String send(String model, String systemPrompt, Object userContent, ProviderCredentials credentials,
+                        Double temperature, Integer maxOutputTokens) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("model", model);
+        body.put("max_tokens", maxOutputTokens == null ? MAX_TOKENS : maxOutputTokens);
+        body.put("system", systemPrompt);
+        body.put("messages", List.of(Map.of("role", "user", "content", userContent)));
+        if (temperature != null) body.put("temperature", temperature);
         JsonNode res = http.send(req("/v1/messages", Duration.ofSeconds(180), credentials)
                 .header("Content-Type", "application/json").POST(http.json(body)).build(), code());
         StringBuilder sb = new StringBuilder();

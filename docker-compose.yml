@@ -54,17 +54,29 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       storage: { condition: service_started }
+      freellmapi: { condition: service_healthy }
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/leenax
       DB_USERNAME: leenax
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      FREELLMAPI_BASE_URL: http://freellmapi:3001
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       SETUP_TOKEN: ${SETUP_TOKEN:-}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-true}
       LEENAX_MASTER_KEY: ${LEENAX_MASTER_KEY:?set LEENAX_MASTER_KEY in .env (openssl rand -base64 32)}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       S3_ENDPOINT: http://storage:8333
@@ -85,6 +97,11 @@ services:
       SEO_DAILY_SEARCHES: ${SEO_DAILY_SEARCHES:-100}
       SEO_CACHE_DAYS: ${SEO_CACHE_DAYS:-7}
       RENDERER_TOKEN: ${RENDERER_TOKEN:?set RENDERER_TOKEN in .env (any long random string)}
+      AGENT_TICK_MS: ${AGENT_TICK_MS:-2000}
+      AGENT_ALLOW_PAID_MODELS: ${AGENT_ALLOW_PAID_MODELS:-false}
+      AGENT_MAX_CONCURRENT_PER_USER: ${AGENT_MAX_CONCURRENT_PER_USER:-2}
+      AGENT_MAX_CONCURRENT_PER_PROJECT: ${AGENT_MAX_CONCURRENT_PER_PROJECT:-4}
+      AGENT_SERVICE_TOKEN: ${AGENT_SERVICE_TOKEN:-}
       # Social publishing (Phase 6). A platform with blank credentials shows as "not set up".
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8088}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -113,6 +130,28 @@ services:
     restart: unless-stopped
     mem_limit: 2g
 
+  # Private free-tier LLM router. Its upstream providers and free-tier keys are
+  # configured in the dashboard on localhost:3001; Leenax reaches it by service DNS.
+  # Keep the dashboard bound to loopback: FreeLLMAPI is a single-user service.
+  freellmapi:
+    image: ghcr.io/tashfeenahmed/freellmapi:v0.16.47
+    restart: unless-stopped
+    env_file:
+      - ./.freellmapi.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    volumes:
+      - freellmapi-data:/app/server/data
+    ports:
+      - "127.0.0.1:${FREELLMAPI_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/ping').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
   # Reads course documents (E2): PDF text, Word/PowerPoint via LibreOffice, and OCR in
   # English and Tamil with Tesseract. Private: no published port, no outside calls.
   # Without it, uploads are kept and wait in the queue until it runs.
@@ -123,6 +162,13 @@ services:
     environment:
       OCR_LANGUAGES: eng+tam
       MAX_DOCUMENT_PAGES: ${MAX_DOCUMENT_PAGES:-500}
+      AGENT_SERVICE_TOKEN: ${AGENT_SERVICE_TOKEN:-}
+      BACKEND_INTERNAL_URL: http://backend:8080
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: leenax
+      PGUSER: leenax
+      PGPASSWORD: ${POSTGRES_PASSWORD}
 
   # Video exports from the editor (Remotion + headless Chrome). Private: no published port.
   renderer:
@@ -167,3 +213,4 @@ volumes:
   pgdata:
   redisdata:
   storagedata:
+  freellmapi-data:

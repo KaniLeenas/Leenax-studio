@@ -7,7 +7,7 @@ import { ProjectMembersPanel } from '../components/ProjectMembers'
 import { NewProjectDialog } from '../components/ProjectDialogs'
 import type { Project } from '../lib/types'
 import { useToasts } from '../stores/ui'
-import { LinkPage } from './AuthPages'
+import { LinkPage, RegisterPage } from './AuthPages'
 import { UsersPage } from './UsersPage'
 
 const kani = { id: 'u1', email: 'kani@leenax.lk', displayName: 'Kani', role: 'ADMIN', status: 'ACTIVE', canCreateProjects: true, mfaEnabled: true, lastLoginAt: '2026-11-23T10:00:00Z', createdAt: '2026-11-01T00:00:00Z' }
@@ -57,16 +57,16 @@ afterEach(() => {
 const page = (items: unknown[]) => ({ items, page: 0, size: 50, totalItems: items.length, totalPages: 1 })
 
 describe('Users', () => {
-  it('shows seats and people, and invites someone with a one-time link', async () => {
+  it('shows a paginated people directory and invites someone with a one-time link', async () => {
     const calls = mockApi([
       ['/users/logins', page([{ id: 'l1', userId: 'u1', email: 'kani@leenax.lk', success: true, ipAddress: '10.0.0.4', userAgent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/131.0', createdAt: '2026-11-23T10:00:00Z' },
         { id: 'l2', email: 'bala@leenax.lk', success: false, reason: 'account_not_active', createdAt: '2026-11-23T09:00:00Z' }])],
-      ['/users', { users: [kani, asha, bala], seats: { used: 3, limit: 5 } }],
+      ['/users', { users: [kani, asha, bala], page: 0, size: 50, totalItems: 3, totalPages: 1 }],
       ['POST /users', (b: unknown) => ({ user: { ...bala, id: 'u4', ...(b as object), status: 'INVITED' }, path: '/activate?token=tok123456789012345678901', expiresAt: '2026-11-30T10:00:00Z' })],
     ])
     const user = userEvent.setup()
     show(<UsersPage />)
-    expect(await screen.findByText('3 of 5 seats in use, 2 left')).toBeInTheDocument()
+    expect(await screen.findByText('3 accounts')).toBeInTheDocument()
     const rows = screen.getAllByRole('row')
     expect(within(rows[1]).getByText('(you)')).toBeInTheDocument()
     expect(within(rows[1]).queryByRole('button', { name: 'Deactivate' })).toBeNull()      // not yourself
@@ -87,21 +87,51 @@ describe('Users', () => {
     expect(screen.getByText(/It won't be shown again/)).toBeInTheDocument()
   })
 
-  it('stops invitations when every seat is taken and asks before deactivating', async () => {
+  it('keeps invitations available and asks before deactivating', async () => {
     const calls = mockApi([
       ['/users/logins', page([])],
-      ['/users', { users: [kani, asha], seats: { used: 2, limit: 2 } }],
+      ['/users', { users: [kani, asha], page: 0, size: 50, totalItems: 102, totalPages: 3 }],
       ['POST /users/u2/deactivate', { ...asha, status: 'DEACTIVATED' }],
     ])
     const user = userEvent.setup()
     show(<UsersPage />)
-    expect(await screen.findByText('2 of 2 seats in use, none left')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Invite someone' })).toBeDisabled()
+    expect(await screen.findByText('102 accounts')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Invite someone' })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: 'Deactivate' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/signed out at once/)).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Deactivate' }))
     await waitFor(() => expect(calls.some((c) => c.url.endsWith('/users/u2/deactivate'))).toBe(true))
+  })
+})
+
+describe('Public registration', () => {
+  it('shows registration only when enabled and asks the user to verify by email', async () => {
+    mockApi([
+      ['/auth/registration', { enabled: true }],
+      ['POST /auth/register', { message: 'If this address can register, a verification link will be sent.' }, 202],
+    ])
+    const user = userEvent.setup()
+    show(<RegisterPage />)
+    await user.type(await screen.findByLabelText('Full name'), 'Asha')
+    await user.type(screen.getByLabelText('Email address'), 'asha@example.com')
+    await user.type(screen.getByLabelText('Password'), 'a long secure password')
+    await user.type(screen.getByLabelText('Confirm password'), 'a long secure password')
+    await user.click(screen.getByRole('button', { name: 'Create account' }))
+    expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeInTheDocument()
+  })
+
+  it('activates public registrations through email verification without resubmitting the password', async () => {
+    const calls = mockApi([
+      ['/auth/link', { purpose: 'ACTIVATE', email: 'asha@example.com', displayName: 'Asha', expiresAt: '2026-12-01T00:00:00Z', passwordChosen: true }],
+      ['POST /auth/link', null, 200],
+    ])
+    const user = userEvent.setup()
+    show(<LinkPage token="tok123456789012345678901" onDone={() => {}} />)
+    await user.click(await screen.findByRole('button', { name: 'Verify email and activate' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/auth/link'))).toBe(true))
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ token: 'tok123456789012345678901', password: '' })
+    expect(await screen.findByRole('heading', { name: 'Your account is ready' })).toBeInTheDocument()
   })
 })
 
@@ -149,7 +179,7 @@ describe('Project members', () => {
   it('lets an owner add people and change roles, but never remove the last owner', async () => {
     const calls = mockApi([
       ['/projects/p1/members', members],
-      ['/users/colleagues', [{ id: 'u1', displayName: 'Kani', email: 'kani@leenax.lk' }, { id: 'u2', displayName: 'Asha', email: 'asha@leenax.lk' }, { id: 'u5', displayName: 'Devi', email: 'devi@leenax.lk' }]],
+      ['/users/colleagues', page([{ id: 'u1', displayName: 'Kani', email: 'kani@leenax.lk' }, { id: 'u2', displayName: 'Asha', email: 'asha@leenax.lk' }, { id: 'u5', displayName: 'Devi', email: 'devi@leenax.lk' }])],
       ['POST /projects/p1/members', [...members, { userId: 'u5', displayName: 'Devi', email: 'devi@leenax.lk', role: 'REVIEWER', status: 'ACTIVE', addedAt: '' }]],
       ['PUT /projects/p1/members/u2', [members[0], { ...members[1], role: 'EDITOR' }]],
     ])

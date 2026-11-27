@@ -20,7 +20,11 @@ public enum ProviderCode {
             "https://elevenlabs.io/app/settings/api-keys", "API key from ElevenLabs (Developers → API keys)"),
     GOOGLE_CLOUD_TTS("Google Cloud Text-to-Speech", Set.of(Capability.VOICE), false,
             "https://console.cloud.google.com/iam-admin/serviceaccounts",
-            "A service account key file (JSON) from a Google Cloud project with the Text-to-Speech API turned on; paste the whole file. An API key also works if your project allows it");
+            "A service account key file (JSON) from a Google Cloud project with the Text-to-Speech API turned on; paste the whole file. An API key also works if your project allows it"),
+    OLLAMA("Ollama (local)", Set.of(Capability.TEXT), false,
+            "https://ollama.com/download", "Runs an open model on your own computer. No API key or per-call provider charge; local CPU/GPU and electricity are used."),
+    FREE_LLM_API("FreeLLMAPI", Set.of(Capability.TEXT), false,
+            "http://localhost:3001", "Use the unified API key from your private FreeLLMAPI dashboard. Free-tier provider keys and their limits still apply.");
 
     public enum Capability { VIDEO, TEXT, IMAGE, VOICE, TRANSCRIPTION, SOUND }
 

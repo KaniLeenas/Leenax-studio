@@ -11,11 +11,11 @@ For the person who installs and runs Leenax Studio. Installation itself is in th
 
 ## People
 
-- **Users** (Manage → Users): invite up to five people in total, counting yourself and anyone invited but not yet active. Each invitation is a one-time link you pass on yourself; the studio sends no email.
+- **Users** (Manage → Users): invite accounts as needed for your deployment. The directory is paginated and can be searched and filtered. Each invitation is a one-time link you pass on yourself; the studio sends no email.
 - **Roles in the studio:** Administrator (everything, including keys, accounts and system health) or Member. Members can be allowed or not to create projects.
 - **Roles in a project:** Owner, Editor, Reviewer, Viewer. The project's owner adds people. Reviewers and owners approve; the author of a version can never approve it.
 - **Leaving:** deactivate a person instead of deleting them, so their history stays. Their seat becomes free. Deactivated people get no notifications.
-- The database refuses a sixth seat and refuses to remove the last administrator, whatever the path.
+- There is no fixed account cap. The database refuses to remove the last administrator, whatever the path.
 
 ## AI accounts and costs
 

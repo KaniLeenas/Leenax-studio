@@ -1,4 +1,4 @@
-"""Real PostgreSQL checks for V9: seats, admins, and row-level security as the app will drive it."""
+"""Real PostgreSQL checks for account lifecycle, administrators, and row-level security."""
 import _env
 import psycopg, uuid, sys
 DSN = _env.DSN
@@ -40,15 +40,14 @@ def mkuser(name, role='MEMBER', status='ACTIVE', create=True):
     return q(sysc, "insert into users(email, display_name, password_hash, role, status, can_create_projects) values (%s,%s,'x',%s,%s,%s) returning id",
              f"{name}-{tag}@t.lk", name, role, status, create)[0][0]
 
-# ---- seats ----
+# ---- account lifecycle; V20 removes the old fixed seat ceiling ----
 q(sysc, "update users set status='DEACTIVATED' where id <> %s and status <> 'DEACTIVATED'", admin)
 a = mkuser('Asha'); b = mkuser('Bala'); c3 = mkuser('Chitra', status='INVITED'); d = mkuser('Devi', create=False)
-check('five seats fill (admin + 4)', q(sysc, "select count(*) from users where status in ('ACTIVE','INVITED')")[0][0] == 5)
-check('a sixth active user is refused', fails(sysc, "insert into users(email,display_name,password_hash) values (%s,'E','x')", f"e-{tag}@t.lk") == 'LX001')
-check('a sixth invited user is refused', fails(sysc, "insert into users(email,display_name,status) values (%s,'E','INVITED')", f"e2-{tag}@t.lk") == 'LX001')
+bulk = [mkuser(f'Bulk{i}') for i in range(100)]
+check('more than 50 active accounts are accepted', len(bulk) == 100 and q(sysc, "select count(*) from users where status='ACTIVE'")[0][0] >= 104)
+check('additional invitations are accepted', mkuser('InviteBeyondLimit', status='INVITED') is not None)
 gone = mkuser('Ghost', status='DEACTIVATED')
-check('deactivated accounts do not take a seat', gone is not None)
-check('reactivating while full is refused', fails(sysc, "update users set status='ACTIVE' where id=%s", gone) == 'LX001')
+check('deactivated accounts can be reactivated without a seat check', q(sysc, "update users set status='ACTIVE' where id=%s returning id", gone) == [(gone,)])
 check('the last admin cannot be demoted', fails(sysc, "update users set role='MEMBER' where id=%s", admin) == 'LX002')
 check('the last admin cannot be deactivated', fails(sysc, "update users set status='DEACTIVATED' where id=%s", admin) == 'LX002')
 check('users are never deleted', fails(sysc, "delete from users where id=%s", d) == 'LX003')

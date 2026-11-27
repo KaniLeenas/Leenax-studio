@@ -7,7 +7,7 @@ The progress record the specification asks for (section 22, step 4). Details per
 | Increment | What | Database | Tests added |
 |---|---|---|---|
 | Phases 1 to 8 | Creator studio: projects, media, AI video and images, voice, subtitles, thumbnails, editor, auto-editor, social publishing, analytics, security, backups, scripts and storyboards | V1 to V8 | see README |
-| E1 | Up to five people, roles, project members, row-level security | V9 | V9 suite (56) |
+| E1 | Multi-user accounts, roles, project members, row-level security | V9, V20 | Updated V9 suite (rerun pending) |
 | E2 | Course documents, OCR, search | V10 | V10 (29), E2 (19) |
 | E3 | Approval engine, syllabus report, topics | V11 | V11 (33), E3 (24) |
 | E4 | Notes, question banks, quizzes, exports | V12 | V12 (32), E4 (47) |

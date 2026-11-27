@@ -101,7 +101,7 @@ export interface DashboardSummary {
 
 // ---- Phase 2: AI providers ------------------------------------------------
 
-export type ProviderCode = 'RUNWAY' | 'GOOGLE_GEMINI' | 'KLING' | 'LUMA' | 'OPENAI' | 'ANTHROPIC' | 'ELEVENLABS' | 'GOOGLE_CLOUD_TTS'
+export type ProviderCode = 'RUNWAY' | 'GOOGLE_GEMINI' | 'KLING' | 'LUMA' | 'OPENAI' | 'ANTHROPIC' | 'ELEVENLABS' | 'GOOGLE_CLOUD_TTS' | 'OLLAMA' | 'FREE_LLM_API'
 export type Capability = 'VIDEO' | 'TEXT' | 'IMAGE' | 'VOICE' | 'TRANSCRIPTION' | 'SOUND'
 export type AccountStatus = 'ACTIVE' | 'UNVERIFIED' | 'INVALID' | 'DISABLED'
 export type CreditUnit = 'CREDITS' | 'USD' | 'SECONDS' | 'UNITS'

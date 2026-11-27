@@ -45,6 +45,9 @@ Image.MAX_IMAGE_PIXELS = 120_000_000
 
 app = FastAPI(title="Leenax document service", docs_url=None, redoc_url=None, openapi_url=None)
 
+from agent_graph import router as agent_graph_router
+app.include_router(agent_graph_router)
+
 TAMIL = re.compile(r"[஀-௿]")
 LATIN = re.compile(r"[A-Za-z]")
 MODULE_CODE = re.compile(r"\b([A-Z]{2,5})[ -]?(\d{3,5}[A-Z]?)\b")

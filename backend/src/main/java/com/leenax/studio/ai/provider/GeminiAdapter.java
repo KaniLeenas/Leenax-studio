@@ -76,7 +76,13 @@ public class GeminiAdapter implements VideoProvider, TextProvider, SpeechProvide
 
     @Override
     public String complete(String model, String systemPrompt, String userPrompt, ProviderCredentials credentials) {
-        return generate(model, systemPrompt, List.of(Map.of("text", userPrompt)), credentials);
+        return generate(model, systemPrompt, List.of(Map.of("text", userPrompt)), credentials, null, null);
+    }
+
+    @Override
+    public String complete(String model, String systemPrompt, String userPrompt, ProviderCredentials credentials,
+                           double temperature, int maxOutputTokens) {
+        return generate(model, systemPrompt, List.of(Map.of("text", userPrompt)), credentials, temperature, maxOutputTokens);
     }
 
     @Override
@@ -88,13 +94,20 @@ public class GeminiAdapter implements VideoProvider, TextProvider, SpeechProvide
                     "data", java.util.Base64.getEncoder().encodeToString(img.bytes()))));
         }
         parts.add(Map.of("text", userPrompt));
-        return generate(model, systemPrompt, parts, credentials);
+        return generate(model, systemPrompt, parts, credentials, null, null);
     }
 
-    private String generate(String model, String systemPrompt, List<? extends Map<String, Object>> parts, ProviderCredentials credentials) {
-        Map<String, Object> body = Map.of(
-                "systemInstruction", Map.of("parts", List.of(Map.of("text", systemPrompt))),
-                "contents", List.of(Map.of("role", "user", "parts", parts)));
+    private String generate(String model, String systemPrompt, List<? extends Map<String, Object>> parts, ProviderCredentials credentials,
+                            Double temperature, Integer maxOutputTokens) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("systemInstruction", Map.of("parts", List.of(Map.of("text", systemPrompt))));
+        body.put("contents", List.of(Map.of("role", "user", "parts", parts)));
+        if (temperature != null || maxOutputTokens != null) {
+            Map<String, Object> generationConfig = new java.util.LinkedHashMap<>();
+            if (temperature != null) generationConfig.put("temperature", temperature);
+            if (maxOutputTokens != null) generationConfig.put("maxOutputTokens", maxOutputTokens);
+            body.put("generationConfig", generationConfig);
+        }
         JsonNode res = http.send(req("/v1beta/models/" + model + ":generateContent", Duration.ofSeconds(180), credentials)
                 .header("Content-Type", "application/json").POST(http.json(body)).build(), code());
         StringBuilder sb = new StringBuilder();

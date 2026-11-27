@@ -14,28 +14,44 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
-/** People and seats. Everything except the colleague list is for administrators (checked in the service and in SecurityConfig). */
+/** People and access. Everything except the colleague list is for administrators. */
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserAdminController {
 
     private final UserAdminService service;
+    private final RegistrationService registration;
 
-    public UserAdminController(UserAdminService service) {
+    public UserAdminController(UserAdminService service, RegistrationService registration) {
         this.service = service;
+        this.registration = registration;
     }
 
     @GetMapping
-    public UsersResponse list() {
-        return service.list();
+    public UsersResponse list(@RequestParam(defaultValue = "0") int page,
+                              @RequestParam(defaultValue = "50") int size,
+                              @RequestParam(required = false) String search,
+                              @RequestParam(required = false) User.Status status) {
+        return service.list(page, size, search, status);
+    }
+
+    @GetMapping("/registration")
+    public RegistrationSettings registrationSettings() {
+        return registration.settings();
+    }
+
+    @PutMapping("/registration")
+    public RegistrationSettings updateRegistrationSettings(@Valid @RequestBody RegistrationModeRequest request) {
+        return registration.updateMode(request);
     }
 
     @GetMapping("/colleagues")
-    public List<Colleague> colleagues() {
-        return service.colleagues();
+    public PageResponse<Colleague> colleagues(@RequestParam(defaultValue = "0") int page,
+                                               @RequestParam(defaultValue = "20") int size,
+                                               @RequestParam(required = false) String search) {
+        return service.colleagues(page, size, search);
     }
 
     @PostMapping
@@ -67,11 +83,6 @@ public class UserAdminController {
     @PostMapping("/{id}/reset-link")
     public LinkResponse resetLink(@PathVariable UUID id) {
         return service.resetLink(id);
-    }
-
-    @PutMapping("/seats")
-    public Seats seats(@Valid @RequestBody SeatsRequest r) {
-        return service.setSeats(r);
     }
 
     @GetMapping("/logins")

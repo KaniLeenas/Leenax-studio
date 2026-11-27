@@ -3,9 +3,10 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ActivityLog, SystemHealth, TwoStepSignIn } from '../components/security'
 import { Panel, Tabs, type TabDef } from '../components/studio'
-import { Button, Field, Input, PageHeader } from '../components/ui'
+import { Button, Field, Input, PageHeader, Select } from '../components/ui'
 import { cn } from '../lib/cn'
 import { useAuthStatus, useChangePassword, useUpdateProfile } from '../lib/queries'
+import { useRegistrationSettings, useUpdateRegistrationMode, type RegistrationMode } from '../lib/people'
 import { toast, useUi } from '../stores/ui'
 
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -61,10 +62,35 @@ export function SettingsPage() {
       )}
       {tab === 'system' && (
         <Panel id="system" className="max-w-3xl">
+          <RegistrationPolicy />
           <SystemHealth />
         </Panel>
       )}
     </>
+  )
+}
+
+function RegistrationPolicy() {
+  const settings = useRegistrationSettings()
+  const update = useUpdateRegistrationMode()
+  const [mode, setMode] = useState<RegistrationMode>('INVITATION_ONLY')
+  useEffect(() => { if (settings.data) setMode(settings.data.mode) }, [settings.data])
+  return (
+    <Section title="Registration" description="Choose who can create an account on this studio.">
+      <div className="flex flex-col gap-3">
+        <Field label="Registration mode" hint={settings.data?.emailConfigured ? 'Public accounts must verify their email before they can sign in.' : 'Invitation-only is available. Configure outbound email before enabling public registration.'}>
+          {(id) => (
+            <Select id={id} value={mode} disabled={settings.isPending || update.isPending} onChange={(e) => setMode(e.target.value as RegistrationMode)}>
+              <option value="INVITATION_ONLY">Invitation only</option>
+              <option value="PUBLIC" disabled={!settings.data?.emailConfigured}>Public, with email verification</option>
+            </Select>
+          )}
+        </Field>
+        {settings.error && <p role="alert" className="text-sm text-rose-signal">Couldn't load registration settings.</p>}
+        <div><Button variant="primary" disabled={!settings.data || mode === settings.data.mode || (mode === 'PUBLIC' && !settings.data.emailConfigured)} loading={update.isPending}
+          onClick={() => update.mutate(mode, { onError: (e) => toast.error(e.message), onSuccess: () => toast.success('Registration settings saved') })}>Save registration mode</Button></div>
+      </div>
+    </Section>
   )
 }
 

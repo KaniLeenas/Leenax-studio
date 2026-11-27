@@ -60,7 +60,7 @@ public class AccountController {
 
     public record CreateAccountRequest(@NotNull ProviderCode provider,
                                        @NotBlank @Size(max = 80) String name,
-                                       @NotBlank @Size(max = 8000) String apiKey,
+                                       @Size(max = 8000) String apiKey,
                                        boolean makeDefault) {
         @Override
         public String toString() {
@@ -83,7 +83,8 @@ public class AccountController {
 
     AccountResponse toResponse(AiAccount a, List<CreditBalance> rows) {
         Instant now = Instant.now();
-        String masked = a.getKeyHint() == null || a.getKeyHint().isEmpty() ? "••••••••" : "••••••••" + a.getKeyHint();
+        String masked = a.getProvider() == ProviderCode.OLLAMA ? "Local model · no API key"
+                : a.getKeyHint() == null || a.getKeyHint().isEmpty() ? "••••••••" : "••••••••" + a.getKeyHint();
         return new AccountResponse(a.getId(), a.getProvider(), a.getProvider().displayName(),
                 a.getProvider().capabilities().stream().map(Enum::name).sorted().toList(),
                 a.getProvider().hasBalanceApi(), a.getName(), a.getStatus(), a.isDefault(), masked,

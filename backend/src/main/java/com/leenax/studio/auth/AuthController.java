@@ -42,11 +42,12 @@ public class AuthController {
     private final AuditService audit;
     private final MfaService mfa;
     private final LoginEventRepository loginEvents;
+    private final RegistrationService registration;
     private final SecurityContextHolderStrategy contextHolder = SecurityContextHolder.getContextHolderStrategy();
 
     public AuthController(AuthService authService, AuthenticationManager authenticationManager,
                           SecurityContextRepository contextRepository, LoginAttemptLimiter limiter,
-                          AuditService audit, MfaService mfa, LoginEventRepository loginEvents) {
+                          AuditService audit, MfaService mfa, LoginEventRepository loginEvents, RegistrationService registration) {
         this.authService = authService;
         this.authenticationManager = authenticationManager;
         this.contextRepository = contextRepository;
@@ -54,6 +55,7 @@ public class AuthController {
         this.audit = audit;
         this.mfa = mfa;
         this.loginEvents = loginEvents;
+        this.registration = registration;
     }
 
     /** Session attribute set after a correct password when a second step is needed: "email|expiresEpochSecond|attempts". */
@@ -116,6 +118,9 @@ public class AuthController {
     public record StatusResponse(boolean setupRequired, boolean setupEnabled, boolean authenticated, UserResponse user) {
     }
 
+    public record RegistrationStatusResponse(boolean enabled) {
+    }
+
     public record SetupRequest(
             @NotBlank String setupToken,
             @NotBlank @Email @Size(max = 254) String email,
@@ -155,6 +160,17 @@ public class AuthController {
                 ? authService.byEmail(authentication.getName()).filter(User::isActive).map(UserResponse::of).orElse(null)
                 : null;
         return new StatusResponse(authService.setupRequired(), authService.setupEnabled(), authenticated && user != null, user);
+    }
+
+    @GetMapping("/registration")
+    public RegistrationStatusResponse registrationStatus() {
+        return new RegistrationStatusResponse(registration.publicRegistrationEnabled());
+    }
+
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public RegistrationService.RegistrationResult register(@Valid @RequestBody RegistrationService.RegisterRequest request) {
+        return registration.register(request);
     }
 
     @PostMapping("/setup")

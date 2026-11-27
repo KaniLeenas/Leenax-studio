@@ -886,15 +886,14 @@ Search: words are letters, combining marks and digits (Tamil vowel signs stay in
 
 | Method | Path | Who | What it does |
 |---|---|---|---|
-| GET | `/api/v1/users` | Admin | `{users[], seats: {used, limit}}`. A person: `id, email, displayName, role (ADMIN/MEMBER), status (INVITED/ACTIVE/DEACTIVATED), canCreateProjects, mfaEnabled, lastLoginAt, activatedAt, deactivatedAt, createdAt` |
+| GET | `/api/v1/users?page=0&size=50&search=...&status=ACTIVE` | Admin | Paginated `{users[], page, size, totalItems, totalPages}`. Search is by name/email prefix; status is optional. A person: `id, email, displayName, role (ADMIN/MEMBER), status (INVITED/ACTIVE/DEACTIVATED), canCreateProjects, mfaEnabled, lastLoginAt, activatedAt, deactivatedAt, createdAt` |
 | POST | `/api/v1/users` | Admin | `{email, displayName, role, canCreateProjects}` → `{user, path, expiresAt}`. `path` is `/activate?token=…`, shown once |
 | PUT | `/api/v1/users/{id}` | Admin | `{displayName, role, canCreateProjects}` |
-| POST | `/api/v1/users/{id}/deactivate`, `/reactivate` | Admin | Not yourself; reactivating needs a free seat |
+| POST | `/api/v1/users/{id}/deactivate`, `/reactivate` | Admin | Not yourself; accounts can be reactivated without a seat cap |
 | POST | `/api/v1/users/{id}/activation-link` | Admin | Invited people only; older links stop working |
 | POST | `/api/v1/users/{id}/reset-link` | Admin | Active people; `/reset-password?token=…`, 24 hours |
-| PUT | `/api/v1/users/seats` | Admin | `{maxActiveUsers: 1–50}`; not below the seats in use |
 | GET | `/api/v1/users/logins?userId=&page=&size=` | Admin | Sign-in history: `email, success, reason (wrong_password, wrong_code, account_not_active), ipAddress, userAgent, createdAt` |
-| GET | `/api/v1/users/colleagues` | Anyone signed in | Active people `{id, displayName, email}`, to add to projects |
+| GET | `/api/v1/users/colleagues?page=0&size=20&search=...` | Anyone signed in | Paginated active people `{items[], page, size, totalItems, totalPages}` to add to projects; search matches name/email prefix |
 | GET | `/api/v1/auth/link?token=` | Public | `{purpose: ACTIVATE/RESET, email, displayName, expiresAt}`; 404 for unknown, used or expired links (counts towards the sign-in lockout) |
 | POST | `/api/v1/auth/link` | Public | `{token, password}`: activates or resets, 204 |
 
@@ -922,7 +921,7 @@ Enforced by PostgreSQL row-level security (V9) on projects, media, generation jo
 - Members: rows in projects they belong to, plus rows with no project that they created. Shared voices are readable by everyone.
 - Writing (insert, update, delete) needs Owner or Editor in the project, or being the creator of a row outside projects.
 
-Answers: a refused insert is 403 `FORBIDDEN`; a refused update or delete is 409 `CONFLICT` ("This changed, or you can't edit it here"); a sixth seat, losing the last administrator, or deleting a person is 409 `CONFLICT`.
+Answers: a refused insert is 403 `FORBIDDEN`; a refused update or delete is 409 `CONFLICT` ("This changed, or you can't edit it here"); losing the last administrator or deleting a person is 409 `CONFLICT`.
 
 Administrator-only routes: `/users` (except `/users/colleagues`), `/system/**`, changes to `/ai/accounts`, `/ai/models`, `/ai/balances`, `/ai/usage`, and connecting, checking or disconnecting social accounts. `GET /api/v1/audit` shows administrators everyone's activity (with `userName`) and members their own; new group `people`.
 

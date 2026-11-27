@@ -550,7 +550,7 @@ When you put it online:
 - **Who can do what:** follows the project. Every member can read, search and download; owners, editors and administrators can add, rename, re-read and delete. PostgreSQL enforces it, as in E1; only the background reader can write pages and passages.
 - Database: `V10__course_documents.sql`. New service: `docservice/`.
 
-## What's in E1: up to five people (education increment 1)
+## What's in E1: multi-user accounts (education increment 1)
 
 The first step of the merged specification ("Leenax Studio: merged master specification"). Leenax is no longer a one-person studio.
 
@@ -559,7 +559,7 @@ The first step of the merged specification ("Leenax Studio: merged master specif
   - Roles: Administrator or Member. Members can be allowed or not to create projects.
   - Deactivate and reactivate people. A deactivated person is signed out on their next click; their work and history stay.
   - Password reset links (24 hours), and a sign-in history with address and device.
-- **Seats:** at most 5 active or invited people by default. Change it under Users; the database refuses a sixth seat and refuses to lose the last administrator, whatever the path.
+- **Account count:** no fixed application or database cap. The Users directory is paginated, searchable by name or email prefix, and filterable by account status. The database still refuses to lose the last administrator.
 - **Projects have members:** Owner, Editor, Reviewer or Viewer. Owners add people and change roles. A project always keeps an owner. Anyone can leave a project.
 - **University subjects:** a project can be a university subject with a module code, year, semester, university and department. Creating one warns when the same module code or name already exists.
 - **What each person sees** is enforced by PostgreSQL itself (row-level security), not only by the app:
@@ -624,7 +624,15 @@ You need **Docker Desktop**. You don't need Java or Node, because Docker builds 
    $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
    ```
    **Back this value up.** It encrypts your provider API keys; if it's lost, the keys must be entered again.
-3. Start the stack:
+   For AI Agent workflows, set `AGENT_SERVICE_TOKEN` to a separate random value in `.env` (for example `openssl rand -hex 32` from Git Bash). The backend and document service must share this token; do not leave it blank or reuse a provider key.
+   For **free agent text generation**, use local Ollama (no API key) or the bundled private FreeLLMAPI router. `AGENT_ALLOW_PAID_MODELS=false` is the default; agents can use these two accounts, while direct paid provider accounts stay blocked. FreeLLMAPI needs free-tier API keys from providers you sign up for, and those providers set the quotas and terms. Do not add paid/custom endpoints to its fallback chain if you need to keep agent requests free. Its dashboard is available only on this PC at `http://localhost:3001`; add free-tier provider keys there, then copy the unified key from its Keys page into Leenax → AI Accounts & Keys → FreeLLMAPI. The database and encrypted keys persist in the `freellmapi-data` volume; `.freellmapi.env` contains its encryption key and must be backed up securely. FreeLLMAPI describes itself as a single-user personal experimentation tool, so don't expose its dashboard or API to the public internet. For remote server administration, use a private tunnel.
+   Ollama runs without a provider key. Leenax defaults to `http://host.docker.internal:11434` in Compose; Ollama must accept connections from the backend container. Set `OLLAMA_NO_CLOUD=1` in Ollama's environment to prevent its cloud-model use. Ollama binds to `127.0.0.1` by default; if you change it to listen on another interface for Docker, restrict access with your firewall because the local API does not require a key. For a backend running directly on Windows, set `OLLAMA_BASE_URL=http://localhost:11434` instead. A local Ollama call has no per-call provider fee, but uses your own computer/server CPU/GPU, memory, storage and electricity.
+3. If you don't already have `.freellmapi.env`, create FreeLLMAPI's encryption key (keep this file safe and backed up):
+   ```powershell
+   $k = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+   "ENCRYPTION_KEY=$k" | Set-Content -Encoding ascii .freellmapi.env
+   ```
+   Start the stack:
    ```powershell
    docker compose up -d --build
    ```
@@ -633,6 +641,7 @@ You need **Docker Desktop**. You don't need Java or Node, because Docker builds 
    Set `RENDERER_TOKEN` in `.env` to any long random string first.
 4. Open **http://localhost:8088**, enter the setup token, and create your account.
 5. After setup, delete the `SETUP_TOKEN` line from `.env` and run `docker compose up -d`. Setup is then switched off completely.
+6. Open **http://localhost:3001** on this PC, create the FreeLLMAPI dashboard login, and add provider API keys for free tiers you are eligible to use. Copy its unified API key. In Leenax, open **AI Accounts & Keys**, connect **FreeLLMAPI** using that key, and select one of its listed models for an agent. Free-tier limits are controlled by each provider; the router does not create unlimited tokens.
 
 Useful commands:
 
@@ -897,7 +906,7 @@ To use **AWS S3** instead of SeaweedFS: create a private bucket and point `S3_EN
   - Documents are read one at a time. A 300-page scanned book can take 20 to 40 minutes on a typical PC.
   - Excel files, images inside Word files and maths formulas aren't read as text. Formulas in a scan come out as approximate characters.
 - **E1 checks:**
-  - **Database (real PostgreSQL 16, as a superuser like Docker):** 56 checks on V9 passed. They cover seats (a sixth active or invited person refused, deactivated people not counted, reactivation refused when full), the last administrator, no deletes, and each role in a project: viewer and reviewer can't change anything, editor can't delete the project or move content out of it. Also covered: personal items stay private, scenes, references and post targets follow their parent, shared voices, workers attributing their output to the job owner, and one pooled connection switching between people. They run the exact statement the app sends, read from the Java source.
+  - **Database:** the updated account suite creates 100 additional active accounts and an invitation without a configured cap, then checks last-administrator protection, no deletes, and each project role. The updated V20 suite has not yet been run here.
   - **Backend:** 160 tests (11 new for E1) with the stand-ins. The Spring wiring (the connection wrapper around the pool, the account filter, the security rules) has **not** run in a real Spring server: Maven still can't be downloaded here. If the app starts but every page is empty, that wiring is the place to look; it fails closed by design.
   - **Frontend:** 118 tests (12 new). Users, one-time links, project members as owner and as viewer, and the new-project dialog were checked in Chrome against a mock API.
 - **Phase 8 checks:**

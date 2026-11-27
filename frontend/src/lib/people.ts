@@ -20,14 +20,12 @@ export interface Person {
   createdAt: string
 }
 
-export interface Seats {
-  used: number
-  limit: number
-}
-
 export interface UsersResponse {
   users: Person[]
-  seats: Seats
+  page: number
+  size: number
+  totalItems: number
+  totalPages: number
 }
 
 /** A one-time link the administrator passes on. Shown once: only its hash is stored. */
@@ -59,21 +57,45 @@ export interface LinkInfo {
   email: string
   displayName: string
   expiresAt: string
+  passwordChosen?: boolean
 }
+
+export type RegistrationMode = 'INVITATION_ONLY' | 'PUBLIC'
+export interface RegistrationSettings { mode: RegistrationMode; emailConfigured: boolean }
 
 export const peopleKeys = {
   users: ['users'] as const,
-  colleagues: ['users', 'colleagues'] as const,
+  colleagues: (search = '') => ['users', 'colleagues', search.trim()] as const,
   logins: (userId?: string) => ['users', 'logins', userId ?? 'all'] as const,
   members: (projectId: string) => ['projects', projectId, 'members'] as const,
 }
 
-export function useUsers() {
-  return useQuery({ queryKey: peopleKeys.users, queryFn: () => api.get<UsersResponse>('/users') })
+export function useUsers(page = 0, search = '', status: AccountStatus | '' = '') {
+  const params = new URLSearchParams({ page: String(page), size: '50' })
+  if (search.trim()) params.set('search', search.trim())
+  if (status) params.set('status', status)
+  return useQuery({
+    queryKey: [...peopleKeys.users, page, search.trim(), status],
+    queryFn: () => api.get<UsersResponse>(`/users?${params.toString()}`),
+  })
 }
 
-export function useColleagues(enabled = true) {
-  return useQuery({ queryKey: peopleKeys.colleagues, queryFn: () => api.get<Colleague[]>('/users/colleagues'), enabled })
+export function useRegistrationSettings() {
+  return useQuery({ queryKey: ['users', 'registration'], queryFn: () => api.get<RegistrationSettings>('/users/registration') })
+}
+
+export function useUpdateRegistrationMode() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (mode: RegistrationMode) => api.put<RegistrationSettings>('/users/registration', { mode }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users', 'registration'] }),
+  })
+}
+
+export function useColleagues(enabled = true, search = '') {
+  const params = new URLSearchParams({ size: '20' })
+  if (search.trim()) params.set('search', search.trim())
+  return useQuery({ queryKey: peopleKeys.colleagues(search), queryFn: () => api.get<Page<Colleague>>(`/users/colleagues?${params.toString()}`), enabled })
 }
 
 export function useLogins(userId?: string) {
@@ -124,14 +146,6 @@ export function useIssueLink() {
   const changed = usePeopleChanged()
   return useMutation({
     mutationFn: ({ id, kind }: { id: string; kind: 'activation' | 'reset' }) => api.post<IssuedLink>(`/users/${id}/${kind}-link`),
-    onSuccess: changed,
-  })
-}
-
-export function useSetSeats() {
-  const changed = usePeopleChanged()
-  return useMutation({
-    mutationFn: (maxActiveUsers: number) => api.put<Seats>('/users/seats', { maxActiveUsers }),
     onSuccess: changed,
   })
 }
@@ -232,10 +246,6 @@ export const canEditProject = (role?: Project['myRole']) => role === 'OWNER' || 
 /** Owners and administrators manage members and delete the project. */
 export const canOwnProject = (role?: Project['myRole']) => role === 'OWNER' || role === 'ADMIN'
 
-export function seatsText(s: Seats): string {
-  const left = Math.max(0, s.limit - s.used)
-  return `${s.used} of ${s.limit} seats in use${left === 0 ? ', none left' : `, ${left} left`}`
-}
 
 /** A short "Chrome on Windows" from a user agent, enough to spot a stranger. */
 export function device(ua?: string): string {

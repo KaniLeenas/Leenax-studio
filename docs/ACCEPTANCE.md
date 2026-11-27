@@ -6,9 +6,8 @@ The backend has also never run inside a real Spring server here, because Maven C
 
 | Criterion | Built in | Checked | Status |
 |---|---|---|---|
-| Five or fewer authorised users can access the system | E1 | V9 suite: seat limit in the database | Met |
-| A sixth active account cannot be created | E1 | V9 suite; E10 workflow test | Met |
-| Public registration is disabled | E1 | One-time setup token, then invitations only | Met |
+| Account count is constrained only by deployment capacity | E1, V20 | Updated V9 suite creates 100 additional accounts; rerun pending | In progress |
+| Invitation-only onboarding remains the default | E1 | One-time setup token, then admin-created invitation links; no email service exists | Met |
 | Users can securely log in | Phase 1, E1 | BCrypt, lockout, two-step sign-in, HttpOnly cookie, CSRF; unit tests | Met |
 | Project permissions work correctly | E1 | V9 suite: each role in a project; every later suite as owner, editor, reviewer, viewer and outsider | Met |
 | Users can create multiple subject projects | E1 | V9 and E-suites create several | Met |

@@ -78,11 +78,13 @@ public class AccountService {
     // ---- create / change ---------------------------------------------------
 
     public AiAccount create(ProviderCode provider, String name, String apiKey, boolean makeDefault) {
+        final String credentialValue = provider == ProviderCode.OLLAMA ? "ollama-local" : apiKey;
+        if (credentialValue == null || credentialValue.isBlank()) throw ApiException.badRequest("An API key is required for this provider.");
         String cleanName = name.trim();
         if (accounts.nameTaken(provider, cleanName, new UUID(0, 0))) {
             throw new ApiException(ErrorCode.CONFLICT, "You already have a " + provider.displayName() + " account called “" + cleanName + "”");
         }
-        ProviderCredentials creds = new ProviderCredentials(apiKey);
+        ProviderCredentials creds = new ProviderCredentials(credentialValue);
 
         // Check the key before saving it. A rejected key is never stored.
         String warning = null;
@@ -96,7 +98,7 @@ public class AccountService {
 
         AiAccount saved = tx.execute(status -> {
             AiAccount a = new AiAccount(provider, cleanName);
-            a.setKeyHint(SecretCipher.hint(apiKey));
+            a.setKeyHint(SecretCipher.hint(credentialValue));
             if (verifyWarning == null) a.markVerified();
             else a.markFailed(AiAccount.Status.UNVERIFIED, verifyWarning);
             boolean first = accounts.findByProvider(provider).isEmpty();
@@ -105,7 +107,7 @@ public class AccountService {
                 a.setDefault(true);
             }
             a = accounts.save(a);
-            vault.store(a.getId(), apiKey);
+            vault.store(a.getId(), credentialValue);
             audit.record("AI_ACCOUNT_ADDED", "ai_account", a.getId(), Map.of("provider", provider.name()));
             return a;
         });
@@ -135,6 +137,7 @@ public class AccountService {
     /** Replaces the key only if the provider accepts the new one. */
     public AiAccount replaceKey(UUID id, String apiKey) {
         AiAccount a = get(id);
+        if (a.getProvider() == ProviderCode.OLLAMA) throw ApiException.badRequest("Ollama runs locally and does not use an API key.");
         ProviderCredentials creds = new ProviderCredentials(apiKey);
         registry.verify(a.getProvider(), creds);
         tx.executeWithoutResult(status -> {

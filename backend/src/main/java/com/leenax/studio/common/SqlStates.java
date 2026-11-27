@@ -6,7 +6,7 @@ import java.util.Optional;
 /**
  * Turns refusals from the database into answers people can act on. Row-level security
  * (V9) answers 42501 when someone writes where they may only read; the account rules
- * raise LX001 to LX003, and the approval rules (V11) LX010 to LX012. Spring and Hibernate wrap these differently depending on the
+ * raise LX002 to LX003, and the approval rules (V11) LX010 to LX012. Spring and Hibernate wrap these differently depending on the
  * path, so the cause chain is searched.
  */
 public final class SqlStates {
@@ -26,8 +26,6 @@ public final class SqlStates {
         return find(t).flatMap(e -> switch (e.getSQLState()) {
             case "42501" -> Optional.of(new ApiException(ErrorCode.FORBIDDEN,
                     "You don't have permission to change this. Ask the project owner for the Editor role."));
-            case "LX001" -> Optional.of(new ApiException(ErrorCode.CONFLICT,
-                    firstLine(e.getMessage(), "All seats are taken") + ". Deactivate someone or raise the limit in Users."));
             case "LX002" -> Optional.of(new ApiException(ErrorCode.CONFLICT,
                     "Leenax Studio needs at least one active administrator. Make someone else an administrator first."));
             case "LX003" -> Optional.of(new ApiException(ErrorCode.CONFLICT,

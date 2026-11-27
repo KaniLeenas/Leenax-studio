@@ -47,11 +47,40 @@ public class TextAi {
         }
     }
 
+    public String ask(UUID accountId, String model, String system, String user, double temperature, int maxOutputTokens) {
+        if (accountId == null || model == null || model.isBlank()) {
+            throw ApiException.badRequest("Choose an AI text account and model (OpenAI, Claude or Gemini)");
+        }
+        var acc = accounts.forUse(accountId);
+        TextProvider text = registry.text(acc.account().getProvider()).orElseThrow(() ->
+                ApiException.badRequest(acc.account().getProvider().displayName() + " can't write text. Use OpenAI, Anthropic or Gemini."));
+        try {
+            String reply = text.complete(model.strip(), system, user, acc.credentials(), temperature, maxOutputTokens);
+            usage.record(acc.account(), model, "TEXT", null, null, null, false, true);
+            return reply;
+        } catch (ProviderException e) {
+            usage.record(acc.account(), model, "TEXT", null, null, null, false, false);
+            throw e;
+        }
+    }
+
     public JsonNode askJson(UUID accountId, String model, String system, String user) {
         IllegalArgumentException last = null;
         for (int attempt = 0; attempt < 2; attempt++) {
             try {
                 return LlmJson.extract(ask(accountId, model, system, user));
+            } catch (IllegalArgumentException e) {
+                last = e;
+            }
+        }
+        throw ApiException.badRequest("The AI reply couldn't be read (" + last.getMessage() + "). Try again or use another model.");
+    }
+
+    public JsonNode askJson(UUID accountId, String model, String system, String user, double temperature, int maxOutputTokens) {
+        IllegalArgumentException last = null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try {
+                return LlmJson.extract(ask(accountId, model, system, user, temperature, maxOutputTokens));
             } catch (IllegalArgumentException e) {
                 last = e;
             }

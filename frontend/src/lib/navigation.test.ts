@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { ALL_NAV_ITEMS, isLive, NAV } from './navigation'
 
 describe('navigation', () => {
-  it('lists all 22 sections with unique paths', () => {
-    expect(ALL_NAV_ITEMS).toHaveLength(22)
-    expect(new Set(ALL_NAV_ITEMS.map((i) => i.path)).size).toBe(22)
+  it('lists all 23 sections with unique paths', () => {
+    expect(ALL_NAV_ITEMS).toHaveLength(23)
+    expect(new Set(ALL_NAV_ITEMS.map((i) => i.path)).size).toBe(23)
   })
 
-  it('marks every section as live after Phase 9', () => {
+  it('marks every section as live after Phase 10', () => {
     const live = ALL_NAV_ITEMS.filter(isLive).map((i) => i.label)
     expect(live).toEqual([
       'Dashboard', 'My projects', 'Media library', 'Course documents',
@@ -16,7 +16,7 @@ describe('navigation', () => {
       'Video editor', 'AI auto editor', 'Subtitles',
       'Social accounts', 'Publisher', 'Calendar', 'Analytics',
       'Users',
-      'AI accounts & keys', 'Credits & usage', 'Settings',
+      'AI accounts & keys', 'Credits & usage', 'AI Agents', 'Settings',
     ])
   })
 
@@ -34,6 +34,6 @@ describe('menu by role', () => {
     expect(member).not.toContain('Credits & usage')
     expect(member).toContain('Settings')
     expect(member).toContain('Course documents')
-    expect(navFor(true).flatMap((g) => g.items)).toHaveLength(22)
+    expect(navFor(true).flatMap((g) => g.items)).toHaveLength(23)
   })
 })

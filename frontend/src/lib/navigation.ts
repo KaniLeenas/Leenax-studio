@@ -1,5 +1,6 @@
 import {
   AudioLines,
+  Bot,
   BookOpen,
   BarChart3,
   CalendarDays,
@@ -83,16 +84,17 @@ export const NAV: NavGroup[] = [
   {
     label: 'Manage',
     items: [
-      { label: 'Users', path: '/manage/users', icon: UserCog, phase: 9, adminOnly: true, summary: 'Up to five people, their roles, activation links and sign-in history.' },
+      { label: 'Users', path: '/manage/users', icon: UserCog, phase: 9, adminOnly: true, summary: 'People, their roles, activation links and sign-in history.' },
       { label: 'AI accounts & keys', path: '/manage/ai-accounts', icon: KeyRound, phase: 2, adminOnly: true, summary: 'Your provider accounts and API keys, stored encrypted on the server.' },
       { label: 'Credits & usage', path: '/manage/credits', icon: Coins, phase: 2, adminOnly: true, summary: 'Balances, costs and low-credit warnings per provider account.' },
+      { label: 'AI Agents', path: '/manage/agents', icon: Bot, phase: 10, adminOnly: true, summary: 'Configure specialist agents, test them and monitor executions.' },
       { label: 'Settings', path: '/settings', icon: Settings, phase: 1, summary: 'Profile, password and appearance.' },
     ],
   },
 ]
 
 /** Phases built so far. Sections from later phases show a "coming in phase N" page. */
-export const CURRENT_PHASE = 9
+export const CURRENT_PHASE = 10
 
 export const isLive = (item: NavItem) => item.phase <= CURRENT_PHASE
 

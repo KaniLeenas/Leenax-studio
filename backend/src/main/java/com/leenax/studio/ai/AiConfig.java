@@ -25,7 +25,9 @@ public class AiConfig {
     }
 
     @Bean
-    ProviderRegistry providerRegistry(ProviderHttp http) {
-        return ProviderRegistry.defaults(http);
+    ProviderRegistry providerRegistry(ProviderHttp http,
+                                     @Value("${leenax.ai.ollama-url:http://localhost:11434}") String ollamaUrl,
+                                     @Value("${leenax.ai.freellmapi-url:http://freellmapi:3001}") String freeLlmApiUrl) {
+        return ProviderRegistry.defaults(http, ollamaUrl, freeLlmApiUrl);
     }
 }

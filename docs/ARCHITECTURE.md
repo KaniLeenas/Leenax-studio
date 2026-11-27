@@ -1,6 +1,6 @@
 # Leenax Studio architecture
 
-Leenax Studio is a private installation for at most five people. It turns university course material into checked notes, question banks, QA reports, SEO reports, presentations and narrated videos, and publishes approved videos to YouTube. A creator workspace (AI video, editor, social publishing) shares the same app.
+Leenax Studio is a multi-user installation whose registered account count is limited by deployment capacity, not an application seat ceiling. It turns university course material into checked notes, question banks, QA reports, SEO reports, presentations and narrated videos, and publishes approved videos to YouTube. A creator workspace (AI video, editor, social publishing) shares the same app.
 
 ## The pieces
 
@@ -169,7 +169,7 @@ docs/             API, checklist, this file, guides, acceptance
 
 - **Java and Spring Boot**, kept from the first phases: typed, well-supported HTTP and JSON clients for each provider, and transactions around every state change.
 - **PostgreSQL** with row-level security and triggers: the rules that protect people's work hold even if application code is wrong, and JSONB keeps versioned content in one place.
-- **Jobs in PostgreSQL, not a queue server:** five users don't need one, and work survives restarts.
+- **Jobs in PostgreSQL, not a queue server:** work survives restarts; worker concurrency is configurable for the available machine.
 - **SeaweedFS:** S3-compatible files on the same PC, with signed URLs so the browser fetches media directly.
 - **Remotion:** the editor's preview and the final render use the same templates.
 - **No paid service is assumed.** Every AI or Google integration is used only when the administrator connects it, with its cost shown where the provider reports one.

@@ -1,4 +1,4 @@
-import { Check, Copy, Link2, Plus, ShieldCheck, UserMinus, UserPlus } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Copy, Link2, Plus, Search, ShieldCheck, UserMinus, UserPlus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Button, Dialog, ErrorNotice, Field, Input, Select, Spinner, StatusPill } from '../components/ui'
 import { cn } from '../lib/cn'
@@ -6,12 +6,10 @@ import { formatDate, formatRelative } from '../lib/format'
 import {
   device,
   linkUrl,
-  seatsText,
   useInvite,
   useIssueLink,
   useLogins,
   usePersonAction,
-  useSetSeats,
   useUpdatePerson,
   useUsers,
   type IssuedLink,
@@ -28,7 +26,10 @@ const STATUS: Record<Person['status'], { label: string; tone: 'done' | 'progress
 }
 
 export function UsersPage() {
-  const users = useUsers()
+  const [page, setPage] = useState(0)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<'' | Person['status']>('')
+  const users = useUsers(page, search, status)
   const me = useAuthStatus().data?.user
   const [inviting, setInviting] = useState(false)
   const [editing, setEditing] = useState<Person>()
@@ -39,9 +40,6 @@ export function UsersPage() {
 
   if (users.isPending) return <Spinner label="Loading people" />
   if (users.error) return <ErrorNotice error={users.error} onRetry={() => users.refetch()} />
-  const { seats } = users.data
-  const full = seats.used >= seats.limit
-
   return (
     <>
       <header className="flex flex-wrap items-end justify-between gap-4 mb-8">
@@ -51,17 +49,22 @@ export function UsersPage() {
             The people who can sign in. Each gets a one-time link to choose their password; what they see inside a project depends on their role there.
           </p>
         </div>
-        <Button variant="primary" icon={<UserPlus className="size-4" />} onClick={() => setInviting(true)} disabled={full}>
+        <Button variant="primary" icon={<UserPlus className="size-4" />} onClick={() => setInviting(true)}>
           Invite someone
         </Button>
       </header>
 
-      <SeatBar seats={seats} />
-
       <section aria-labelledby="people-heading" className="mt-8">
-        <h2 id="people-heading" className="text-lg font-semibold mb-3">
-          People
-        </h2>
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+          <div>
+            <h2 id="people-heading" className="text-lg font-semibold">People</h2>
+            <p className="text-sm text-muted">{users.data.totalItems.toLocaleString()} accounts</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Field label="Search people">{(id) => <div className="relative"><Search className="absolute left-3 top-3 size-4 text-faint" aria-hidden /><Input id={id} className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0) }} placeholder="Name or email" /></div>}</Field>
+            <Field label="Status">{(id) => <Select id={id} value={status} onChange={(e) => { setStatus(e.target.value as '' | Person['status']); setPage(0) }}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="INVITED">Invited</option><option value="DEACTIVATED">Deactivated</option></Select>}</Field>
+          </div>
+        </div>
         <div className="rounded-2xl border border-line bg-surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-muted">
@@ -121,7 +124,7 @@ export function UsersPage() {
                           </Button>
                         )}
                         {u.status === 'DEACTIVATED' ? (
-                          <Button size="sm" variant="ghost" disabled={full} title={full ? 'All seats are taken' : undefined}
+                          <Button size="sm" variant="ghost"
                             onClick={() => action.mutate({ id: u.id, action: 'reactivate' }, { onSuccess: (p) => toast.success(`${p.displayName} can sign in again`), onError: (e) => toast.error(e.message) })}>
                             Reactivate
                           </Button>
@@ -139,6 +142,13 @@ export function UsersPage() {
               })}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center justify-between gap-3 mt-3 text-sm text-muted">
+          <span>Page {users.data.totalPages === 0 ? 0 : page + 1} of {users.data.totalPages}</span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" icon={<ChevronLeft className="size-4" />} disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Previous</Button>
+            <Button size="sm" variant="ghost" icon={<ChevronRight className="size-4" />} disabled={page + 1 >= users.data.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          </div>
         </div>
       </section>
 
@@ -177,49 +187,6 @@ export function UsersPage() {
         </p>
       </Dialog>
     </>
-  )
-}
-
-function SeatBar({ seats }: { seats: { used: number; limit: number } }) {
-  const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(String(seats.limit))
-  const set = useSetSeats()
-  const pct = Math.min(100, Math.round((seats.used / Math.max(seats.limit, 1)) * 100))
-
-  function save(e: FormEvent) {
-    e.preventDefault()
-    const n = Number(value)
-    if (!Number.isInteger(n) || n < 1 || n > 50) return toast.error('Choose a number from 1 to 50')
-    set.mutate(n, { onSuccess: () => { toast.success(`Seat limit is now ${n}`); setEditing(false) }, onError: (err) => toast.error(err.message) })
-  }
-
-  return (
-    <section aria-label="Seats" className="rounded-2xl border border-line bg-surface p-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-      <div className="flex-1 min-w-60">
-        <p className="font-medium">{seatsText(seats)}</p>
-        <div className="mt-2 h-2 rounded-full bg-track overflow-hidden" role="meter" aria-label="Seats in use" aria-valuemin={0} aria-valuemax={seats.limit} aria-valuenow={seats.used}>
-          <div className={cn('h-full rounded-full', pct >= 100 ? 'bg-marigold-500' : 'bg-peacock-500')} style={{ width: `${pct}%` }} />
-        </div>
-        <p className="text-xs text-faint mt-2">Active and invited people take a seat. Deactivated people don't.</p>
-      </div>
-      {editing ? (
-        <form onSubmit={save} className="flex items-end gap-2">
-          <div className="w-28">
-            <Field label="Seat limit">{(id) => <Input id={id} type="number" min={1} max={50} value={value} onChange={(e) => setValue(e.target.value)} />}</Field>
-          </div>
-          <Button type="submit" variant="primary" loading={set.isPending}>
-            Save
-          </Button>
-          <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-            Cancel
-          </Button>
-        </form>
-      ) : (
-        <Button variant="ghost" onClick={() => { setValue(String(seats.limit)); setEditing(true) }}>
-          Change limit
-        </Button>
-      )}
-    </section>
   )
 }
 

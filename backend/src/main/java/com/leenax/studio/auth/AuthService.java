@@ -128,7 +128,7 @@ public class AuthService {
         return new IssuedLink(token, expires);
     }
 
-    public record LinkInfo(UserToken.Purpose purpose, String email, String displayName, Instant expiresAt) {
+    public record LinkInfo(UserToken.Purpose purpose, String email, String displayName, Instant expiresAt, boolean passwordChosen) {
     }
 
     /** What a link is for, so the page can greet the person. Unknown, used and expired links all look the same. */
@@ -136,7 +136,7 @@ public class AuthService {
     public LinkInfo inspect(String token) {
         UserToken t = usable(token);
         User u = users.findById(t.getUserId()).orElseThrow(AuthService::invalidLink);
-        return new LinkInfo(t.getPurpose(), u.getEmail(), u.getDisplayName(), t.getExpiresAt());
+        return new LinkInfo(t.getPurpose(), u.getEmail(), u.getDisplayName(), t.getExpiresAt(), u.getPasswordHash() != null);
     }
 
     /** Sets the password through a link: activates an invited account, or resets an active one. */
@@ -147,12 +147,17 @@ public class AuthService {
         if (u.getStatus() == User.Status.DEACTIVATED) throw invalidLink();
         if (t.getPurpose() == UserToken.Purpose.ACTIVATE && u.getStatus() != User.Status.INVITED) throw invalidLink();
         if (t.getPurpose() == UserToken.Purpose.RESET && u.getStatus() != User.Status.ACTIVE) throw invalidLink();
-        PasswordPolicy.validate(password);
         t.use();
         if (t.getPurpose() == UserToken.Purpose.ACTIVATE) {
-            u.activate(passwordEncoder.encode(password));
+            if (password != null && !password.isBlank()) {
+                PasswordPolicy.validate(password);
+                u.setPasswordHash(passwordEncoder.encode(password));
+            }
+            if (u.getPasswordHash() == null) throw invalidLink();
+            u.activate(u.getPasswordHash());
             audit.record("ACCOUNT_ACTIVATED", "user", u.getId(), Map.of());
         } else {
+            PasswordPolicy.validate(password);
             u.setPasswordHash(passwordEncoder.encode(password));
             audit.record("PASSWORD_RESET", "user", u.getId(), Map.of());
         }

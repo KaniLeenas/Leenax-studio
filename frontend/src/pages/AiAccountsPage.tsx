@@ -42,7 +42,7 @@ export function AiAccountsPage() {
     <>
       <PageHeader
         title="AI accounts & keys"
-        description="Connect your own provider accounts. Keys are encrypted on your server and never sent back to the browser."
+        description="Connect provider accounts, a local Ollama model, or the private FreeLLMAPI free-tier router. External API keys are encrypted on your server and never sent back to the browser."
         actions={
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setAdding('any')}>
             Add account
@@ -59,7 +59,7 @@ export function AiAccountsPage() {
             <div className="mb-10">
               <EmptyState
                 title="No accounts connected yet"
-                body="Add a Runway, Kling, Luma or Google Gemini key to start generating video. Add OpenAI, Anthropic or Gemini to get help writing prompts."
+                body="Connect a provider account, or use Ollama to run a text model locally without an API key or per-call charge."
                 action={
                   <Button variant="primary" onClick={() => setAdding('any')}>
                     Add your first account
@@ -254,7 +254,7 @@ function AddAccountDialog({
   function submit(e: FormEvent) {
     e.preventDefault()
     create.mutate(
-      { provider, name: name.trim() || `${info.name} account`, apiKey: apiKey.trim(), makeDefault },
+      { provider, name: name.trim() || `${info.name} account`, apiKey: provider === 'OLLAMA' ? '' : apiKey.trim(), makeDefault },
       {
         onSuccess: (a) => {
           setApiKey('')
@@ -282,7 +282,7 @@ function AddAccountDialog({
         <Field label="Account name" hint="Your own label, e.g. “Personal” or “Free trial”.">
           {(id, d) => <Input id={id} aria-describedby={d} value={name} maxLength={80} placeholder={`${info.name} account`} onChange={(e) => setName(e.target.value)} />}
         </Field>
-        <Field label={provider === 'GOOGLE_CLOUD_TTS' ? 'Service account key or API key' : 'API key'} hint={info.keyHelp}>
+      {provider === 'OLLAMA' ? <div className="rounded-xl bg-surface-2 p-4 text-sm text-muted">{info.keyHelp} The server must be able to reach your Ollama installation at its configured address. No provider API key will be stored.</div> : <Field label={provider === 'GOOGLE_CLOUD_TTS' ? 'Service account key or API key' : provider === 'FREE_LLM_API' ? 'Unified API key' : 'API key'} hint={info.keyHelp}>
           {(id, d) => (
             <Input
               id={id}
@@ -294,12 +294,12 @@ function AddAccountDialog({
               onChange={(e) => setApiKey(e.target.value)}
             />
           )}
-        </Field>
+        </Field>}
         {provider === 'GOOGLE_CLOUD_TTS' && <KeyFile onRead={setApiKey} />}
-        <a href={info.keyUrl} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-sm text-muted hover:text-ink underline underline-offset-4 self-start">
+        {provider !== 'OLLAMA' && <a href={info.keyUrl} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-sm text-muted hover:text-ink underline underline-offset-4 self-start">
           Get a key from {info.name}
           <ExternalLink className="size-3.5" aria-hidden />
-        </a>
+        </a>}
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} className="size-4 accent-[var(--color-marigold-500)]" />
           Use this as my default {info.name} account
@@ -313,8 +313,8 @@ function AddAccountDialog({
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary" loading={create.isPending} disabled={apiKey.trim().length < 8}>
-            {create.isPending ? `Checking with ${info.name}` : 'Check and save'}
+          <Button type="submit" variant="primary" loading={create.isPending} disabled={provider !== 'OLLAMA' && apiKey.trim().length < 8}>
+            {create.isPending ? `Checking with ${info.name}` : provider === 'OLLAMA' ? 'Connect local model' : 'Check and save'}
           </Button>
         </div>
       </form>
@@ -376,7 +376,7 @@ function EditAccountDialog({ account, onClose }: { account: AiAccount; onClose: 
         </div>
       </form>
 
-      <div className="mt-6 pt-5 border-t border-line">
+      {account.provider !== 'OLLAMA' && <div className="mt-6 pt-5 border-t border-line">
         <p className="font-medium flex items-center gap-2">
           <KeyRound className="size-4" aria-hidden />
           Replace API key
@@ -398,7 +398,7 @@ function EditAccountDialog({ account, onClose }: { account: AiAccount; onClose: 
             Replace
           </Button>
         </div>
-      </div>
+      </div>}
 
       <div className="mt-6 pt-5 border-t border-line flex flex-wrap items-center gap-2">
         {confirmDelete ? (

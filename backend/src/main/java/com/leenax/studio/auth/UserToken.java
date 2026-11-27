@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-/** A one-time link to activate an account or reset a password. Only the SHA-256 of the token is kept. */
+/** A one-time link to activate/verify an account or reset a password. Only the SHA-256 of the token is kept. */
 @Entity
 @Table(name = "user_tokens")
 public class UserToken {

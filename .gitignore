@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+.freellmapi.env
 backups/
 server-backups/
 Claude outputs/

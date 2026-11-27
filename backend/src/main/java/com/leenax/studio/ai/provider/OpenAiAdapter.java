@@ -130,7 +130,13 @@ public class OpenAiAdapter implements TextProvider, ImageProvider, Transcription
 
     @Override
     public String complete(String model, String systemPrompt, String userPrompt, ProviderCredentials credentials) {
-        return chat(model, systemPrompt, userPrompt, credentials);
+        return chat(model, systemPrompt, userPrompt, credentials, null, null);
+    }
+
+    @Override
+    public String complete(String model, String systemPrompt, String userPrompt, ProviderCredentials credentials,
+                           double temperature, int maxOutputTokens) {
+        return chat(model, systemPrompt, userPrompt, credentials, temperature, maxOutputTokens);
     }
 
     @Override
@@ -143,15 +149,20 @@ public class OpenAiAdapter implements TextProvider, ImageProvider, Transcription
                     "url", "data:" + img.mimeType() + ";base64," + java.util.Base64.getEncoder().encodeToString(img.bytes()),
                     "detail", "low")));
         }
-        return chat(model, systemPrompt, content, credentials);
+        return chat(model, systemPrompt, content, credentials, null, null);
     }
 
-    private String chat(String model, String systemPrompt, Object userContent, ProviderCredentials credentials) {
-        Map<String, Object> body = Map.of(
-                "model", model,
-                "messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", userContent)));
+    private String chat(String model, String systemPrompt, Object userContent, ProviderCredentials credentials,
+                        Double temperature, Integer maxOutputTokens) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("model", model);
+        body.put("messages", List.of(Map.of("role", "system", "content", systemPrompt),
+                Map.of("role", "user", "content", userContent)));
+        if (temperature != null) body.put("temperature", temperature);
+        if (maxOutputTokens != null) body.put("max_tokens", maxOutputTokens);
+        // Qwen3-class Ollama models may consume the token budget in reasoning
+        // and return an empty content field unless reasoning is explicitly off.
+        if (code() == ProviderCode.OLLAMA) body.put("reasoning_effort", "none");
         JsonNode res = http.send(req("/v1/chat/completions", Duration.ofSeconds(180), credentials)
                 .header("Content-Type", "application/json").POST(http.json(body)).build(), code());
         String text = ProviderHttp.text(res, "/choices/0/message/content");

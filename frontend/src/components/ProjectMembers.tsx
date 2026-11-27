@@ -4,14 +4,15 @@ import { canOwnProject, PROJECT_ROLES, useChangeMembers, useColleagues, useProje
 import { useAuthStatus } from '../lib/queries'
 import type { Project, ProjectRole } from '../lib/types'
 import { toast } from '../stores/ui'
-import { Button, ErrorNotice, Select, Spinner } from './ui'
+import { Button, ErrorNotice, Input, Select, Spinner } from './ui'
 
 /** Who is in the project and in what role. Owners and administrators change it; anyone may leave. */
 export function ProjectMembersPanel({ project, onLeft }: { project: Project; onLeft?: () => void }) {
   const members = useProjectMembers(project.id)
   const me = useAuthStatus().data?.user
   const manage = canOwnProject(project.myRole)
-  const colleagues = useColleagues(manage)
+  const [colleagueSearch, setColleagueSearch] = useState('')
+  const colleagues = useColleagues(manage, colleagueSearch)
   const change = useChangeMembers(project.id)
   const [adding, setAdding] = useState('')
   const [role, setRole] = useState<ProjectRole>('EDITOR')
@@ -20,7 +21,7 @@ export function ProjectMembersPanel({ project, onLeft }: { project: Project; onL
   if (members.error) return <ErrorNotice error={members.error} onRetry={() => members.refetch()} />
   const list = members.data
   const owners = list.filter((m) => m.role === 'OWNER').length
-  const available = (colleagues.data ?? []).filter((c) => !list.some((m) => m.userId === c.id))
+  const available = (colleagues.data?.items ?? []).filter((c) => !list.some((m) => m.userId === c.id))
   const isMe = (m: Member) => m.email.toLowerCase() === me?.email.toLowerCase()
 
   const run = (c: Parameters<typeof change.mutate>[0], ok: string, after?: () => void) =>
@@ -92,8 +93,9 @@ export function ProjectMembersPanel({ project, onLeft }: { project: Project; onL
             <label htmlFor="add-member" className="text-sm font-medium block mb-1.5">
               Add someone
             </label>
-            <Select id="add-member" value={adding} onChange={(e) => setAdding(e.target.value)} disabled={available.length === 0}>
-              <option value="">{available.length === 0 ? 'Everyone is already here' : 'Choose a person'}</option>
+            <Input aria-label="Search active people" value={colleagueSearch} onChange={(e) => { setColleagueSearch(e.target.value); setAdding('') }} placeholder="Search name or email" />
+            <Select id="add-member" className="mt-2" value={adding} onChange={(e) => setAdding(e.target.value)} disabled={available.length === 0}>
+              <option value="">{available.length === 0 ? 'No matching people' : 'Choose a person'}</option>
               {available.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.displayName}

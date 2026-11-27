@@ -7,19 +7,16 @@ import com.leenax.studio.common.ErrorCode;
 import com.leenax.studio.common.PageResponse;
 import com.leenax.studio.common.SqlStates;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * The administrator's side of accounts. The seat limit and "keep one administrator"
- * are checked here for a clear message, and again by the database (V9) so no path
- * can get around them.
+ * The administrator's side of accounts. The last active administrator invariant
+ * is checked here for a clear message and again by the database.
  */
 @Service
 public class UserAdminService {
@@ -31,30 +28,34 @@ public class UserAdminService {
     private final AuthService auth;
     private final CurrentUser current;
     private final LoginEventRepository logins;
-    private final JdbcTemplate jdbc;
     private final AuditService audit;
 
     public UserAdminService(UserRepository users, AuthService auth, CurrentUser current, LoginEventRepository logins,
-                            JdbcTemplate jdbc, AuditService audit) {
+                            AuditService audit) {
         this.users = users;
         this.auth = auth;
         this.current = current;
         this.logins = logins;
-        this.jdbc = jdbc;
         this.audit = audit;
     }
 
     @Transactional(readOnly = true)
-    public UsersResponse list() {
+    public UsersResponse list(int page, int size, String search, User.Status status) {
         current.requireAdmin();
-        return new UsersResponse(users.findAllByOrderByCreatedAtAsc().stream().map(Person::of).toList(), seats());
+        var pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(size, 1), 100));
+        String term = search == null || search.isBlank() ? null : search.strip();
+        var result = users.searchUsers(status, term, pageable);
+        return new UsersResponse(result.map(Person::of).getContent(), result.getNumber(), result.getSize(),
+                result.getTotalElements(), result.getTotalPages());
     }
 
     @Transactional(readOnly = true)
-    public List<Colleague> colleagues() {
+    public PageResponse<Colleague> colleagues(int page, int size, String search) {
         current.require();
-        return users.findByStatusOrderByDisplayNameAsc(User.Status.ACTIVE).stream()
-                .map(u -> new Colleague(u.getId(), u.getDisplayName(), u.getEmail())).toList();
+        var pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(size, 1), 50));
+        String term = search == null || search.isBlank() ? null : search.strip();
+        return PageResponse.of(users.searchUsers(User.Status.ACTIVE, term, pageable)
+                .map(u -> new Colleague(u.getId(), u.getDisplayName(), u.getEmail())));
     }
 
     @Transactional
@@ -64,7 +65,6 @@ public class UserAdminService {
         if (users.findByEmailIgnoreCase(email).isPresent()) {
             throw new ApiException(ErrorCode.CONFLICT, "Someone with that email already has an account");
         }
-        requireFreeSeat();
         User u = save(User.invited(email, r.displayName().strip(), r.role(), r.canCreateProjects(), admin.getId()));
         audit.record("USER_INVITED", "user", u.getId(), Map.of("role", r.role().name()));
         AuthService.IssuedLink link = auth.issue(u, UserToken.Purpose.ACTIVATE, admin.getId());
@@ -109,7 +109,6 @@ public class UserAdminService {
         current.requireAdmin();
         User u = find(id);
         if (u.getStatus() != User.Status.DEACTIVATED) return Person.of(u);
-        requireFreeSeat();
         u.reactivate();
         save(u);
         audit.record("USER_REACTIVATED", "user", u.getId(), Map.of());
@@ -142,19 +141,6 @@ public class UserAdminService {
         return new LinkResponse(Person.of(u), RESET_PATH + link.token(), link.expiresAt());
     }
 
-    @Transactional
-    public Seats setSeats(SeatsRequest r) {
-        User admin = current.requireAdmin();
-        long used = users.countByStatusIn(EnumSet.of(User.Status.ACTIVE, User.Status.INVITED));
-        if (r.maxActiveUsers() < used) {
-            throw new ApiException(ErrorCode.CONFLICT, used + " seats are in use. Deactivate someone before lowering the limit.");
-        }
-        jdbc.update("update app_settings set value = ?, updated_at = now() where key = 'max_active_users'",
-                String.valueOf(r.maxActiveUsers()));
-        audit.record("SEAT_LIMIT_CHANGED", "user", admin.getId(), Map.of("limit", r.maxActiveUsers()));
-        return seats();
-    }
-
     @Transactional(readOnly = true)
     public PageResponse<LoginResponse> logins(UUID userId, int page, int size) {
         current.requireAdmin();
@@ -166,29 +152,15 @@ public class UserAdminService {
 
     // ---- helpers -----------------------------------------------------------------------------------
 
-    Seats seats() {
-        Integer limit = jdbc.queryForObject("select value::int from app_settings where key = 'max_active_users'", Integer.class);
-        return new Seats(users.countByStatusIn(EnumSet.of(User.Status.ACTIVE, User.Status.INVITED)), limit == null ? 5 : limit);
-    }
-
-    private void requireFreeSeat() {
-        Seats s = seats();
-        if (s.used() >= s.limit()) {
-            throw new ApiException(ErrorCode.CONFLICT, "All " + s.limit()
-                    + " seats are taken. Deactivate someone or raise the limit.");
-        }
-    }
-
     private long otherActiveAdmins(User u) {
-        return users.findAllByOrderByCreatedAtAsc().stream()
-                .filter(x -> x.isAdmin() && x.isActive() && !x.getId().equals(u.getId())).count();
+        return users.countByRoleAndStatusAndIdNot(User.Role.ADMIN, User.Status.ACTIVE, u.getId());
     }
 
     private User find(UUID id) {
         return users.findById(id).orElseThrow(() -> ApiException.notFound("User"));
     }
 
-    /** Saves and flushes so the database's own checks (seats, last administrator) answer here, with a clear message. */
+    /** Saves and flushes so the database's own last-administrator rule answers here. */
     private User save(User u) {
         try {
             return users.saveAndFlush(u);

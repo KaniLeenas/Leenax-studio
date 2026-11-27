@@ -34,12 +34,22 @@ public class ProviderRegistry {
     }
 
     public static ProviderRegistry defaults(ProviderHttp http) {
+        return defaults(http, "http://localhost:11434");
+    }
+
+    public static ProviderRegistry defaults(ProviderHttp http, String ollamaBaseUrl) {
+        return defaults(http, ollamaBaseUrl, "http://freellmapi:3001");
+    }
+
+    public static ProviderRegistry defaults(ProviderHttp http, String ollamaBaseUrl, String freeLlmApiBaseUrl) {
         GeminiAdapter gemini = new GeminiAdapter(http);
         OpenAiAdapter openai = new OpenAiAdapter(http);
+        OllamaAdapter ollama = new OllamaAdapter(http, ollamaBaseUrl);
+        FreeLlmApiAdapter freeLlmApi = new FreeLlmApiAdapter(http, freeLlmApiBaseUrl);
         ElevenLabsAdapter eleven = new ElevenLabsAdapter(http);
         return new ProviderRegistry(
                 List.of(new RunwayAdapter(http), gemini, new KlingAdapter(http), new LumaAdapter(http)),
-                List.of(gemini, openai, new AnthropicAdapter(http)),
+                List.of(gemini, openai, new AnthropicAdapter(http), ollama, freeLlmApi),
                 List.of(eleven, gemini, new GoogleCloudTtsAdapter(http)),
                 List.of(openai, gemini),
                 List.of(eleven, openai),

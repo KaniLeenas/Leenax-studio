@@ -15,7 +15,7 @@ const RANGES = [7, 30, 90] as const
 
 const PROVIDER_NAME: Record<string, string> = {
   RUNWAY: 'Runway', GOOGLE_GEMINI: 'Google Gemini', KLING: 'Kling AI', LUMA: 'Luma AI',
-  OPENAI: 'OpenAI', ANTHROPIC: 'Anthropic', ELEVENLABS: 'ElevenLabs', GOOGLE_CLOUD_TTS: 'Google Cloud TTS',
+  OPENAI: 'OpenAI', ANTHROPIC: 'Anthropic', ELEVENLABS: 'ElevenLabs', GOOGLE_CLOUD_TTS: 'Google Cloud TTS', OLLAMA: 'Ollama (local)', FREE_LLM_API: 'FreeLLMAPI',
 }
 
 export function AnalyticsPage() {

@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { canEditProject, canOwnProject, device, linkUrl, roleLabel, seatsText } from './people'
+import { canEditProject, canOwnProject, device, linkUrl, roleLabel } from './people'
 
 describe('people', () => {
-  it('describes seats in words', () => {
-    expect(seatsText({ used: 3, limit: 5 })).toBe('3 of 5 seats in use, 2 left')
-    expect(seatsText({ used: 5, limit: 5 })).toBe('5 of 5 seats in use, none left')
-  })
-
   it('says who may edit and who may manage a project', () => {
     expect(canEditProject('EDITOR')).toBe(true)
     expect(canEditProject('REVIEWER')).toBe(false)

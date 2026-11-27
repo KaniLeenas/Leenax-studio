@@ -77,6 +77,22 @@ class LumaAndTextAdaptersTest {
     }
 
     @Test
+    void ollamaUsesItsLocalOpenAiCompatibleTextEndpoint() throws Exception {
+        OllamaAdapter ollama = new OllamaAdapter(http, server.url() + "/");
+        ProviderCredentials localMarker = new ProviderCredentials("ollama-local");
+        server.on("GET /v1/models", r -> MockServer.Reply.json(200,
+                "{\"data\":[{\"id\":\"qwen3:1.7b\"},{\"id\":\"gemma4:cloud\"}] }"));
+        assertEquals(ProviderCode.OLLAMA, ollama.code());
+        assertEquals(List.of("qwen3:1.7b"), ollama.listModels(localMarker));
+        server.on("POST /v1/chat/completions", r -> MockServer.Reply.json(200,
+                "{\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"}}]}"));
+        assertEquals("{\"ok\":true}", ollama.complete("qwen3:1.7b", "sys", "hi", localMarker, 0.2, 512));
+        assertEquals("Bearer ollama-local", server.last("POST", "/v1/chat/completions").header("Authorization"));
+        assertEquals("none", mapper.readTree(server.last("POST", "/v1/chat/completions").body()).get("reasoning_effort").asText());
+        assertEquals(ProviderCode.OLLAMA, ProviderRegistry.defaults(http, server.url()).text(ProviderCode.OLLAMA).orElseThrow().code());
+    }
+
+    @Test
     void anthropicSendsVersionHeaderAndJoinsTextBlocks() throws Exception {
         AnthropicAdapter claude = new AnthropicAdapter(http, server.url());
         server.on("POST /v1/messages", r -> MockServer.Reply.json(200,

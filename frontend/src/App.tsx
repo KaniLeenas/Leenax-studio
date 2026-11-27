@@ -7,7 +7,7 @@ import { ErrorNotice, Spinner } from './components/ui'
 import { setUnauthorizedHandler } from './lib/api'
 import { ALL_NAV_ITEMS, isLive } from './lib/navigation'
 import { keys, useAuthStatus } from './lib/queries'
-import { LinkPage, LoginPage, SetupPage } from './pages/AuthPages'
+import { LinkPage, LoginPage, RegisterPage, SetupPage } from './pages/AuthPages'
 import { AdminOnly } from './components/AdminOnly'
 import { ComingSoonPage } from './pages/ComingSoonPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -60,6 +60,7 @@ const VideoPage = lazy(() => import('./pages/VideoPage').then((m) => ({ default:
 const YouTubePublishPage = lazy(() => import('./pages/YouTubePublishPage').then((m) => ({ default: m.YouTubePublishPage })))
 const YouTubeAnalyticsPage = lazy(() => import('./pages/YouTubeAnalyticsPage').then((m) => ({ default: m.YouTubeAnalyticsPage })))
 const UsersPage = lazy(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })))
+const AgentsPage = lazy(() => import('./pages/AgentsPage').then((m) => ({ default: m.AgentsPage })))
 const ThumbnailEditorPage = lazy(() => import('./pages/ThumbnailEditorPage').then((m) => ({ default: m.ThumbnailEditorPage })))
 
 export default function App() {
@@ -95,7 +96,7 @@ export default function App() {
   } else if (auth.data.setupRequired) {
     content = <SetupPage enabled={auth.data.setupEnabled} />
   } else if (!auth.data.authenticated) {
-    content = <LoginPage />
+    content = location.pathname === '/register' ? <RegisterPage /> : <LoginPage />
   } else {
     content = (
       <AppShell>
@@ -142,6 +143,7 @@ export default function App() {
           <Route path="/manage/users" element={<AdminOnly><Suspense fallback={<Spinner label="Opening users" />}><UsersPage /></Suspense></AdminOnly>} />
           <Route path="/manage/ai-accounts" element={<AdminOnly><AiAccountsPage /></AdminOnly>} />
           <Route path="/manage/credits" element={<AdminOnly><CreditsPage /></AdminOnly>} />
+          <Route path="/manage/agents" element={<AdminOnly><Suspense fallback={<Spinner label="Opening AI agents" />}><AgentsPage /></Suspense></AdminOnly>} />
           <Route path="/publish/accounts" element={<SocialAccountsPage />} />
           <Route path="/publish/new" element={<PublisherPage />} />
           <Route path="/publish/calendar" element={<CalendarPage />} />

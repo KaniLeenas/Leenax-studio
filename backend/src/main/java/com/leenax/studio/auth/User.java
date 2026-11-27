@@ -15,8 +15,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * A person who can sign in. At most five are active or invited at a time (V9 enforces it);
- * deactivated people keep their history and don't take a seat.
+ * A person who can sign in. Account count is constrained by deployment capacity;
+ * deactivated people keep their history.
  */
 @Entity
 @Table(name = "users")

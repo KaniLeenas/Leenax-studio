@@ -14,6 +14,12 @@ public interface TextProvider {
 
     String complete(String model, String systemPrompt, String userPrompt, ProviderCredentials credentials);
 
+    /** Completion with per-agent controls. Existing callers keep provider defaults. */
+    default String complete(String model, String systemPrompt, String userPrompt, ProviderCredentials credentials,
+                            double temperature, int maxOutputTokens) {
+        return complete(model, systemPrompt, userPrompt, credentials);
+    }
+
     /**
      * Same as {@link #complete} with pictures attached (JPEG/PNG frames). Used to describe footage.
      * The model must accept images; most current OpenAI, Claude and Gemini models do.

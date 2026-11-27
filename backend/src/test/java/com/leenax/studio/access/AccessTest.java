@@ -117,10 +117,6 @@ class AccessTest {
         assertEquals(ErrorCode.FORBIDDEN, e.code());
         assertTrue(e.getMessage().contains("Editor role"));
 
-        ApiException seats = SqlStates.translate(new RuntimeException(
-                new SQLException("ERROR: Leenax Studio allows 5 active or invited users\n  Where: PL/pgSQL function", "LX001"))).orElseThrow();
-        assertEquals(ErrorCode.CONFLICT, seats.code());
-        assertEquals("Leenax Studio allows 5 active or invited users. Deactivate someone or raise the limit in Users.", seats.getMessage());
         assertEquals(ErrorCode.CONFLICT, SqlStates.translate(new SQLException("x", "LX002")).orElseThrow().code());
         assertFalse(SqlStates.translate(new SQLException("duplicate key", "23505")).isPresent());
         assertFalse(SqlStates.translate(new RuntimeException("no sql here")).isPresent());

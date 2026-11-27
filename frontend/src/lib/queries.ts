@@ -38,6 +38,17 @@ export function useLogin() {
   })
 }
 
+export function useRegistrationStatus() {
+  return useQuery({ queryKey: ['auth', 'registration'], queryFn: () => api.get<{ enabled: boolean }>('/auth/registration'), staleTime: 30_000 })
+}
+
+export function useRegister() {
+  return useMutation({
+    mutationFn: (body: { displayName: string; email: string; password: string; confirmPassword: string }) =>
+      api.post<{ message: string }>('/auth/register', body),
+  })
+}
+
 /** Second sign-in step: a code from the authenticator app, or a recovery code. */
 export function useMfaLogin() {
   const qc = useQueryClient()
