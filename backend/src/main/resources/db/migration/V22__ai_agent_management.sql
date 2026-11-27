@@ -102,7 +102,8 @@ CREATE TABLE ai_tool_registry (
     input_schema JSONB NOT NULL DEFAULT '{"type":"object"}'::jsonb,
     output_schema JSONB NOT NULL DEFAULT '{"type":"object"}'::jsonb,
     permission VARCHAR(40) NOT NULL,
-    timeout_seconds INTEGER NOT NULL DEFAULT 30 CHECK (timeout_seconds BETWEEN 1 AND 300),
+    -- A video render may take 15 minutes; keep the registry ceiling aligned with the agent limit.
+    timeout_seconds INTEGER NOT NULL DEFAULT 30 CHECK (timeout_seconds BETWEEN 1 AND 900),
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
